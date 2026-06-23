@@ -1,0 +1,152 @@
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+
+/* iOS Safe Areas */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Hide scrollbars globally for mobile feel */
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PHONE FRAME MOCKUP — desktop / fullscreen — mobile
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Desktop: frame de iPhone ── */
+.app-outer {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: radial-gradient(ellipse at center, #1a1a2e 0%, #0d0d14 100%);
+}
+
+.phone-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.phone-frame {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  width: 393px;
+  height: 852px;
+  border-radius: 54px;
+  box-shadow:
+    0 40px 100px rgba(0,0,0,0.85),
+    0 0 0 12px #1C1C1E,
+    0 0 0 13px #3A3A3C,
+    0 0 0 14px #1C1C1E;
+  background: #000;
+}
+
+.phone-notch {
+  position: absolute;
+  z-index: 50;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 126px;
+  height: 37px;
+  background: #000;
+  border-radius: 20px;
+}
+
+.phone-screen {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border-radius: 42px;
+}
+
+/* Botões laterais decorativos */
+.phone-btn { position: absolute; }
+.phone-btn-left-1 {
+  left: -6px; top: 116px;
+  width: 5px; height: 34px;
+  background: linear-gradient(90deg, #111 0%, #404040 100%);
+  border-radius: 3px 0 0 3px;
+}
+.phone-btn-left-2 {
+  left: -6px; top: 165px;
+  width: 5px; height: 52px;
+  background: linear-gradient(90deg, #111 0%, #404040 100%);
+  border-radius: 3px 0 0 3px;
+}
+.phone-btn-left-3 {
+  left: -6px; top: 228px;
+  width: 5px; height: 52px;
+  background: linear-gradient(90deg, #111 0%, #404040 100%);
+  border-radius: 3px 0 0 3px;
+}
+.phone-btn-right-1 {
+  right: -6px; top: 170px;
+  width: 5px; height: 80px;
+  background: linear-gradient(90deg, #404040 0%, #111 100%);
+  border-radius: 0 3px 3px 0;
+}
+.phone-btn-right-2 {
+  right: -6px; top: 430px;
+  width: 5px; height: 52px;
+  background: linear-gradient(90deg, #404040 0%, #111 100%);
+  border-radius: 0 3px 3px 0;
+}
+
+.phone-label {
+  text-align: center;
+  margin-top: 0.75rem;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.25);
+}
+
+/* ── Mobile (≤768px): fullscreen ── */
+@media (max-width: 768px) {
+  .app-outer {
+    display: block;
+    padding: 0;
+    background: none;
+    min-height: 100dvh;
+    height: 100dvh;
+  }
+
+  .phone-wrap {
+    width: 100%;
+    height: 100dvh;
+  }
+
+  .phone-frame {
+    width: 100%;
+    height: 100dvh;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .phone-notch,
+  .phone-btn,
+  .phone-label {
+    display: none;
+  }
+
+  .phone-screen {
+    border-radius: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
