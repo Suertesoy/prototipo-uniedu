@@ -112,7 +112,8 @@
    PROPOSED = valor do Design System que ainda difere do que as telas usam hoje.
    A migração acontece por lotes. 3C: Header (header/*), BottomNav (nav/*) e
    PrimaryButton (action/*); 3D: ProgressBar, ModuleCard e LessonCard (progress/*,
-   module/*, lesson/*, status/*). O restante das telas ainda não consome os tokens.
+   module/*, lesson/*, status/*); 3E: busca e abas de Aulas (input/*, tab/*) e
+   demais conteúdos da tela. As outras telas ainda não consomem os tokens.
 ═══════════════════════════════════════════════════════════════ */
 
 /* ── Primitivos (somente os referenciados pelos tokens semânticos) ── */
@@ -220,7 +221,7 @@
 
   --input-bg: var(--palette-tw-gray-100);
   --input-fg: var(--text-content);
-  --input-placeholder: var(--palette-tw-gray-600);     /* PROPOSED (hoje gray-400 / padrão do navegador) */
+  --input-placeholder: var(--palette-tw-gray-600);     /* aplicado na rodada 3E (antes gray-400 / padrão do navegador) */
   --tab-active-fg: var(--palette-pink-700);
   --tab-indicator: var(--palette-pink-700);
   --tab-inactive-fg: var(--palette-tw-gray-600);

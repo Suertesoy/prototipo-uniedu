@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
 import { BottomNav } from "../components/bottom-nav";
 import { Header } from "../components/header";
 import { ModuleCard, type ModuleColor } from "../components/module-card";
@@ -124,11 +124,39 @@ const onlineStudents = [
   { id: 8, name: "Hugo", avatar: "👨‍🎓", status: "online", currentLesson: "Tipografia — Princípios" },
 ];
 
+type AulasTab = "all" | "downloads" | "notes" | "turma";
+
+/* Ordem visual das abas (Todas · Turma · Downloads · Notas) */
+const tabs: { id: AulasTab; label: string }[] = [
+  { id: "all", label: "Todas" },
+  { id: "turma", label: `Turma (${onlineStudents.length})` },
+  { id: "downloads", label: "Downloads" },
+  { id: "notes", label: "Notas" },
+];
+
 export function AulasPage() {
   const { notes, deleteNote } = useNotes();
-  const [activeTab, setActiveTab] = useState<"all" | "downloads" | "notes" | "turma">("all");
+  const [activeTab, setActiveTab] = useState<AulasTab>("all");
   const [openModuleId, setOpenModuleId] = useState<number | null>(1);
   const [deletedId, setDeletedId] = useState<string | null>(null);
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const idPrefix = useId();
+  const tabId = (tab: AulasTab) => `${idPrefix}-tab-${tab}`;
+  const panelId = `${idPrefix}-panel`;
+
+  /* Padrão ARIA tabs com ativação automática: setas, Home e End movem o foco
+     e selecionam a aba; só a aba ativa entra na ordem do Tab (roving tabindex). */
+  const handleTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    let next: number | null = null;
+    if (e.key === "ArrowRight") next = (index + 1) % tabs.length;
+    else if (e.key === "ArrowLeft") next = (index - 1 + tabs.length) % tabs.length;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = tabs.length - 1;
+    if (next === null) return;
+    e.preventDefault();
+    setActiveTab(tabs[next].id);
+    tabRefs.current[next]?.focus();
+  };
 
   const handleDelete = (id: string) => {
     setDeletedId(id);
@@ -147,68 +175,68 @@ export function AulasPage() {
   }, {});
 
   return (
-    <div className="h-full bg-gray-50 dark:bg-background flex flex-col overflow-hidden">
+    <div className="h-full bg-bg-page flex flex-col overflow-hidden">
       <Header title="Aulas" showBack={false} />
 
-      {/* Search bar */}
-      <div className="flex-shrink-0 bg-white dark:bg-card px-4 py-3 border-b border-gray-200 dark:border-border">
+      {/* Search bar — composição local (Figma 51:44); tokens input/* */}
+      <div className="flex-shrink-0 bg-card px-4 py-3 border-b border-border-card">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-input-placeholder"
+            aria-hidden="true"
+          />
           <input
             type="text"
+            aria-label="Buscar aulas"
             placeholder="Buscar aulas..."
-            className="w-full pl-10 pr-4 py-2.5 bg-gray-100 dark:bg-accent dark:text-gray-100 dark:placeholder-gray-400 rounded-full focus:outline-none focus:ring-2 focus:ring-[#A31545] dark:focus:ring-[#B8467A] text-sm"
+            className="w-full pl-10 pr-4 py-2.5 bg-input-bg text-input-fg placeholder:text-input-placeholder type-body-md rounded-full outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex-shrink-0 bg-white dark:bg-card border-b border-gray-200 dark:border-border flex">
-        <button
-          onClick={() => setActiveTab("all")}
-          className={`flex-1 py-3 text-xs font-medium border-b-2 transition-colors ${
-            activeTab === "all"
-              ? "border-[#A31545] dark:border-[#B8467A] text-[#A31545] dark:text-primary"
-              : "border-transparent text-gray-600 dark:text-gray-400"
-          }`}
-        >
-          Todas
-        </button>
-        <button
-          onClick={() => setActiveTab("turma")}
-          className={`flex-1 py-3 text-xs font-medium border-b-2 transition-colors ${
-            activeTab === "turma"
-              ? "border-[#A31545] dark:border-[#B8467A] text-[#A31545] dark:text-primary"
-              : "border-transparent text-gray-600 dark:text-gray-400"
-          }`}
-        >
-          Turma ({onlineStudents.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("downloads")}
-          className={`flex-1 py-3 text-xs font-medium border-b-2 transition-colors ${
-            activeTab === "downloads"
-              ? "border-[#A31545] dark:border-[#B8467A] text-[#A31545] dark:text-primary"
-              : "border-transparent text-gray-600 dark:text-gray-400"
-          }`}
-        >
-          Downloads
-        </button>
-        <button
-          onClick={() => setActiveTab("notes")}
-          className={`flex-1 py-3 text-xs font-medium border-b-2 transition-colors ${
-            activeTab === "notes"
-              ? "border-[#A31545] dark:border-[#B8467A] text-[#A31545] dark:text-primary"
-              : "border-transparent text-gray-600 dark:text-gray-400"
-          }`}
-        >
-          Notas
-        </button>
+      {/* Tabs — composição local (Figma 51:50); tokens tab/* */}
+      <div
+        role="tablist"
+        aria-label="Conteúdo de Aulas"
+        className="flex-shrink-0 bg-card border-b border-border-card flex"
+      >
+        {tabs.map((tab, index) => {
+          const selected = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              ref={(el) => {
+                tabRefs.current[index] = el;
+              }}
+              type="button"
+              role="tab"
+              id={tabId(tab.id)}
+              aria-selected={selected}
+              aria-controls={panelId}
+              tabIndex={selected ? 0 : -1}
+              onClick={() => setActiveTab(tab.id)}
+              onKeyDown={(e) => handleTabKeyDown(e, index)}
+              className={`flex-1 min-w-0 px-1 py-3 type-label-sm border-b-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${
+                selected
+                  ? "border-tab-indicator text-tab-active-fg"
+                  : "border-transparent text-tab-inactive-fg"
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Content - scrollable */}
       <div className="flex-1 overflow-y-auto pb-4">
-        <div className="p-4 space-y-4">
+        <div
+          role="tabpanel"
+          id={panelId}
+          aria-labelledby={tabId(activeTab)}
+          tabIndex={0}
+          className="p-4 space-y-4 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        >
           {activeTab === "all" && (
             <>
               {modules.map((module) => {
@@ -243,29 +271,32 @@ export function AulasPage() {
 
           {activeTab === "turma" && (
             <>
-              {/* Chat em grupo card */}
+              {/* Chat em grupo card — gradiente de destaque sem token semântico (mantido) */}
               <div className="bg-gradient-to-br from-[#A31545] to-pink-600 dark:from-[#1C0E15] dark:to-[#160B11] rounded-2xl shadow-md p-4 text-white">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
-                    <MessageSquare className="w-7 h-7" />
+                    <MessageSquare className="w-7 h-7" aria-hidden="true" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-bold mb-0.5">Chat geral da turma</p>
-                    <p className="text-xs text-white/80">{onlineStudents.length} pessoas online agora</p>
+                    <p className="type-title-sm mb-0.5">Chat geral da turma</p>
+                    <p className="type-caption text-white/80">{onlineStudents.length} pessoas online agora</p>
                   </div>
                 </div>
-                <Link to="/chat-turma" className="block w-full bg-white text-[#A31545] dark:text-[#B8467A] py-3 rounded-xl text-sm font-bold active:bg-white/90 shadow-sm text-center">
+                <Link
+                  to="/chat-turma"
+                  className="block w-full bg-white text-[#A31545] dark:text-[#B8467A] py-3 rounded-xl text-sm leading-5 font-bold tracking-[0.025em] active:bg-white/90 shadow-sm text-center focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-white"
+                >
                   ENTRAR NO CHAT
                 </Link>
               </div>
 
-              {/* Info card */}
+              {/* Info card — azul informativo (cor funcional, mantida) */}
               <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-200 dark:border-blue-800 p-4">
                 <div className="flex items-start gap-2">
-                  <Users className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                  <Users className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" aria-hidden="true" />
                   <div>
-                    <p className="text-sm font-bold text-blue-900 dark:text-blue-300 mb-1">Estude com colegas</p>
-                    <p className="text-xs text-blue-700 dark:text-blue-400 leading-relaxed">
+                    <p className="type-title-sm text-blue-900 dark:text-blue-300 mb-1">Estude com colegas</p>
+                    <p className="type-body-md text-blue-700 dark:text-blue-400">
                       Converse sobre as aulas, tire dúvidas e troque experiências com outros estudantes que estão online agora.
                     </p>
                   </div>
@@ -273,35 +304,39 @@ export function AulasPage() {
               </div>
 
               {/* Online students list */}
-              <div className="bg-white dark:bg-card rounded-2xl shadow-md border border-gray-200 dark:border-border p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="flex items-center gap-2 text-sm font-bold dark:text-gray-100">
-                    <Users className="w-4 h-4 text-[#A31545] dark:text-primary" />
+              <div className="bg-card rounded-2xl shadow-md border border-border-card p-4">
+                <div className="flex items-center justify-between gap-2 mb-4">
+                  <h3 className="flex items-center gap-2 type-title-sm text-text-content">
+                    <Users className="w-4 h-4 text-primary" aria-hidden="true" />
                     <span>Estudantes online</span>
                   </h3>
                   <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                    <span className="text-xs text-green-600 dark:text-green-400 font-medium">{onlineStudents.length} online</span>
+                    <div className="w-2 h-2 bg-status-success-icon rounded-full animate-pulse" aria-hidden="true" />
+                    <span className="type-label-sm text-status-success-fg">{onlineStudents.length} online</span>
                   </div>
                 </div>
 
                 <div className="space-y-3">
                   {onlineStudents.map((student) => (
-                    <div key={student.id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-background rounded-xl active:bg-gray-100 dark:active:bg-[#404040] transition-colors">
+                    <div key={student.id} className="flex items-center gap-3 p-3 bg-bg-page rounded-xl active:bg-gray-100 dark:active:bg-[#404040] transition-colors">
                       <div className="relative flex-shrink-0">
-                        <div className="w-12 h-12 bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900/30 dark:to-purple-900/30 rounded-full flex items-center justify-center text-xl">
+                        <div className="w-12 h-12 bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900/30 dark:to-purple-900/30 rounded-full flex items-center justify-center text-xl" aria-hidden="true">
                           {student.avatar}
                         </div>
-                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-[#262626]" />
+                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-status-success-icon rounded-full border-2 border-bg-page" aria-hidden="true" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate dark:text-gray-100">{student.name}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        <p className="type-title-sm text-text-content truncate">{student.name}</p>
+                        <p className="type-caption text-text-meta truncate">
                           Assistindo: {student.currentLesson}
                         </p>
                       </div>
-                      <button className="flex-shrink-0 p-2.5 bg-[#A31545] dark:bg-[#F48FB1] rounded-full active:bg-[#7D1133] dark:active:bg-[#EC407A] transition-colors">
-                        <MessageSquare className="w-4 h-4 text-white" />
+                      <button
+                        type="button"
+                        aria-label={`Enviar mensagem para ${student.name}`}
+                        className="flex-shrink-0 p-2.5 bg-primary rounded-full active:bg-action-primary-pressed transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring focus-visible:ring-offset-bg-page"
+                      >
+                        <MessageSquare className="w-4 h-4 text-primary-foreground" aria-hidden="true" />
                       </button>
                     </div>
                   ))}
@@ -318,21 +353,21 @@ export function AulasPage() {
                     <Link
                       key={lesson.id}
                       to={`/aulas/${lesson.id}`}
-                      className="block bg-white dark:bg-card rounded-2xl shadow-md border border-gray-200 dark:border-border overflow-hidden hover:shadow-lg transition-shadow"
+                      className="block bg-card rounded-2xl shadow-md border border-border-card overflow-hidden hover:shadow-lg transition-shadow outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <div className="p-4">
                         <div className="flex gap-3">
-                          <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900/30 dark:to-purple-900/30 rounded-xl flex items-center justify-center">
-                            <Download className="w-7 h-7 text-[#A31545] dark:text-primary" />
+                          <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-lesson-tile-start to-lesson-tile-end rounded-xl flex items-center justify-center">
+                            <Download className="w-7 h-7 text-primary" aria-hidden="true" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{lesson.module}</p>
-                            <h4 className="text-sm font-medium mb-2 line-clamp-2 dark:text-gray-100">
+                            <p className="type-caption text-text-meta mb-1">{lesson.module}</p>
+                            <h4 className="type-title-sm text-text-content mb-2 line-clamp-2">
                               {lesson.title}
                             </h4>
-                            <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                            <div className="flex items-center gap-3 type-caption text-text-meta">
                               <span>{lesson.size}</span>
-                              <span>•</span>
+                              <span aria-hidden="true">•</span>
                               <span>{lesson.downloadDate}</span>
                             </div>
                           </div>
@@ -342,12 +377,12 @@ export function AulasPage() {
                   ))}
                 </div>
               ) : (
-                <div className="bg-white dark:bg-card rounded-2xl shadow-md border border-gray-200 dark:border-border p-8 text-center">
+                <div className="bg-card rounded-2xl shadow-md border border-border-card p-8 text-center">
                   <div className="w-16 h-16 bg-gray-100 dark:bg-accent rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Download className="w-8 h-8 text-gray-400" />
+                    <Download className="w-8 h-8 text-text-meta" aria-hidden="true" />
                   </div>
-                  <h3 className="mb-2 dark:text-gray-100">Nenhuma aula baixada</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <h3 className="type-heading-sm text-text-content mb-2">Nenhuma aula baixada</h3>
+                  <p className="type-body-md text-text-meta">
                     Faça download de aulas para assistir offline
                   </p>
                 </div>
@@ -358,10 +393,10 @@ export function AulasPage() {
           {activeTab === "notes" && (
             <>
               {notes.length === 0 ? (
-                <div className="bg-white dark:bg-card rounded-2xl shadow-md border border-gray-200 dark:border-border p-8 text-center">
-                  <div className="text-5xl mb-3">📝</div>
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Nenhuma anotação ainda</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 leading-relaxed">
+                <div className="bg-card rounded-2xl shadow-md border border-border-card p-8 text-center">
+                  <div className="text-5xl mb-3" aria-hidden="true">📝</div>
+                  <p className="type-title-sm text-text-content mb-1">Nenhuma anotação ainda</p>
+                  <p className="type-body-md text-text-meta">
                     Suas anotações feitas durante as aulas aparecerão aqui, organizadas por aula.
                   </p>
                 </div>
@@ -373,17 +408,17 @@ export function AulasPage() {
                       <div key={lessonId}>
                         {/* Lesson header */}
                         <div className="flex items-center gap-2 mb-2.5">
-                          <div className="w-7 h-7 bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900/30 dark:to-purple-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <BookOpen className="w-3.5 h-3.5 text-[#A31545] dark:text-primary" />
+                          <div className="w-7 h-7 bg-gradient-to-br from-lesson-tile-start to-lesson-tile-end rounded-lg flex items-center justify-center flex-shrink-0">
+                            <BookOpen className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-gray-700 dark:text-gray-200 truncate">{firstNote.lessonTitle}</p>
-                            <p className="text-[10px] text-gray-400 dark:text-gray-500">{firstNote.moduleTitle} · {lessonNotes.length} anotação{lessonNotes.length !== 1 ? "s" : ""}</p>
+                            <p className="type-title-sm text-text-content truncate">{firstNote.lessonTitle}</p>
+                            <p className="type-caption text-text-meta">{firstNote.moduleTitle} · {lessonNotes.length} anotação{lessonNotes.length !== 1 ? "s" : ""}</p>
                           </div>
                         </div>
 
                         {/* Notes for this lesson */}
-                        <div className="space-y-2 pl-2 border-l-2 border-gray-100 dark:border-border ml-3.5">
+                        <div className="space-y-2 pl-2 border-l-2 border-border-divider ml-3.5">
                           {lessonNotes.map((note) => {
                             const cs = colorStyles[note.color];
                             const isDeleting = deletedId === note.id;
@@ -395,19 +430,21 @@ export function AulasPage() {
                                 }`}
                               >
                                 <div className="flex items-start justify-between gap-2">
-                                  <p className="text-xs text-gray-700 dark:text-gray-200 leading-relaxed flex-1">
+                                  <p className="type-body-md text-text-content flex-1 min-w-0 break-words">
                                     {note.content}
                                   </p>
                                   <button
+                                    type="button"
                                     onClick={() => handleDelete(note.id)}
-                                    className="p-1 rounded-full bg-white/60 dark:bg-white/10 active:bg-white flex-shrink-0 mt-0.5"
+                                    aria-label="Excluir anotação"
+                                    className="p-1.5 rounded-full bg-white/60 dark:bg-white/10 active:bg-white flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                   >
-                                    <Trash2 className="w-3 h-3 text-gray-400" />
+                                    <Trash2 className="w-3.5 h-3.5 text-text-meta" aria-hidden="true" />
                                   </button>
                                 </div>
                                 <div className="flex items-center gap-1.5 mt-2">
-                                  <div className={`w-1.5 h-1.5 rounded-full ${cs.dot}`} />
-                                  <span className="text-[10px] text-gray-400 dark:text-gray-500">{fmtDate(note.createdAt)}</span>
+                                  <div className={`w-1.5 h-1.5 rounded-full ${cs.dot}`} aria-hidden="true" />
+                                  <span className="type-caption text-text-meta">{fmtDate(note.createdAt)}</span>
                                 </div>
                               </div>
                             );
@@ -417,10 +454,10 @@ export function AulasPage() {
                     );
                   })}
 
-                  {/* Summary footer */}
+                  {/* Summary footer — gradiente decorativo sem token semântico (mantido) */}
                   <div className="bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-900/20 dark:to-purple-900/20 rounded-xl p-3 flex items-center gap-3">
-                    <PenLine className="w-4 h-4 text-[#A31545] dark:text-primary flex-shrink-0" />
-                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                    <PenLine className="w-4 h-4 text-primary flex-shrink-0" aria-hidden="true" />
+                    <p className="type-caption text-text-meta">
                       <strong>{notes.length}</strong> anotações em{" "}
                       <strong>{Object.keys(notesByLesson).length}</strong> aula{Object.keys(notesByLesson).length !== 1 ? "s" : ""}
                     </p>
