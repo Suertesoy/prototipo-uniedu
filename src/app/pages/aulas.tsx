@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { BottomNav } from "../components/bottom-nav";
 import { Header } from "../components/header";
-import { Search, Play, Clock, CheckCircle2, Download, BookOpen, Trash2, PenLine, Users, MessageSquare, ChevronDown, ChevronUp } from "lucide-react";
+import { ModuleCard, type ModuleColor } from "../components/module-card";
+import { LessonCard } from "../components/lesson-card";
+import { Search, Download, BookOpen, Trash2, PenLine, Users, MessageSquare } from "lucide-react";
 import { Link } from "react-router";
 import { useNotes, Note } from "../context/notes-context";
 
@@ -20,8 +22,7 @@ const modules = [
   {
     id: 1,
     name: "UX Strategy",
-    color: "from-pink-400 to-rose-400",
-    darkClass: "dark:bg-none dark:bg-card dark:border-l-4 dark:border-l-[#B51A52] dark:border-b dark:border-b-border dark:backdrop-blur-none",
+    color: "pink" as ModuleColor,
     lessons: [
       { id: 1, title: "Introdução", duration: "12 min", completed: true },
       { id: 2, title: "Percepção Visual e Gestalt", duration: "25 min", completed: true },
@@ -47,8 +48,7 @@ const modules = [
   {
     id: 2,
     name: "UI Design",
-    color: "from-purple-400 to-pink-400",
-    darkClass: "dark:bg-none dark:bg-card dark:border-l-4 dark:border-l-[#512DA8] dark:border-b dark:border-b-border dark:backdrop-blur-none",
+    color: "purple" as ModuleColor,
     lessons: [
       { id: 20, title: "Cores — Princípios (light e dark mode)", duration: "40 min", completed: false },
       { id: 21, title: "Cores — Teoria e Acessibilidade", duration: "35 min", completed: false },
@@ -61,8 +61,7 @@ const modules = [
   {
     id: 3,
     name: "UX Writing",
-    color: "from-blue-400 to-purple-400",
-    darkClass: "dark:bg-none dark:bg-card dark:border-l-4 dark:border-l-[#283593] dark:border-b dark:border-b-border dark:backdrop-blur-none",
+    color: "blue" as ModuleColor,
     lessons: [
       { id: 26, title: "O que é Tom de Voz", duration: "20 min", completed: false },
       { id: 27, title: "As 4 dimensões do Tom de Voz", duration: "25 min", completed: false },
@@ -82,8 +81,7 @@ const modules = [
   {
     id: 4,
     name: "UX Research",
-    color: "from-emerald-400 to-teal-400",
-    darkClass: "dark:bg-none dark:bg-card dark:border-l-4 dark:border-l-[#004D40] dark:border-b dark:border-b-border dark:backdrop-blur-none",
+    color: "green" as ModuleColor,
     lessons: [
       { id: 39, title: "Seleção de Participantes", duration: "45 min", completed: false },
       { id: 40, title: "Análise de Pesquisas", duration: "50 min", completed: false },
@@ -217,68 +215,29 @@ export function AulasPage() {
                 const isExpanded = openModuleId === module.id;
                 const completedCount = module.lessons.filter(l => l.completed).length;
                 const totalCount = module.lessons.length;
-                const progressPercentage = Math.round((completedCount / totalCount) * 100);
 
                 return (
-                <div key={module.id} className="bg-white dark:bg-card rounded-2xl shadow-md border border-gray-200 dark:border-border overflow-hidden">
-                  {/* Module header */}
-                  <div 
-                    className={`bg-gradient-to-r ${module.color} ${module.darkClass} p-4 text-white dark:text-[#FCE4EC] cursor-pointer active:opacity-90 transition-opacity`}
-                    onClick={() => setOpenModuleId(isExpanded ? null : module.id)}
+                  <ModuleCard
+                    key={module.id}
+                    title={module.name}
+                    color={module.color}
+                    completedCount={completedCount}
+                    totalCount={totalCount}
+                    expanded={isExpanded}
+                    onToggle={() => setOpenModuleId(isExpanded ? null : module.id)}
                   >
-                    <div className="flex justify-between items-center mb-1">
-                      <h3 className="text-lg font-bold">{module.name}</h3>
-                      {isExpanded ? <ChevronUp className="w-5 h-5 text-white dark:text-[#FCE4EC]" /> : <ChevronDown className="w-5 h-5 text-white dark:text-[#FCE4EC]" />}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-white/90 dark:text-[#B0BEC5]">
-                      <span>{totalCount} aulas</span>
-                      <span>•</span>
-                      <span>{completedCount} concluída{completedCount !== 1 ? 's' : ''}</span>
-                    </div>
-                    {/* Barra de progresso */}
-                    <div className="w-full h-1.5 bg-white/30 dark:bg-black/40 rounded-full mt-3 overflow-hidden">
-                      <div className="h-full bg-white dark:bg-[#F06292] transition-all duration-500" style={{ width: `${progressPercentage}%` }} />
-                    </div>
-                  </div>
-
-                  {/* Lessons */}
-                  {isExpanded && (
-                    <div className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-card">
-                      {module.lessons.map((lesson) => (
-                        <Link
-                          key={lesson.id}
-                          to={`/aulas/${lesson.id}`}
-                          className="block p-4 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors"
-                        >
-                          <div className="flex gap-3">
-                            <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-pink-100 to-purple-100 dark:from-pink-900/30 dark:to-purple-900/30 rounded-xl flex items-center justify-center">
-                              {lesson.completed ? (
-                                <CheckCircle2 className="w-7 h-7 text-green-500" />
-                              ) : (
-                                <Play className="w-7 h-7 text-[#A31545] dark:text-primary" />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-sm font-medium mb-1 line-clamp-2 dark:text-gray-100">
-                                {lesson.title}
-                              </h4>
-                              <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                                <Clock className="w-3.5 h-3.5" />
-                                <span>{lesson.duration}</span>
-                                {lesson.completed && (
-                                  <span className="ml-auto text-green-600 dark:text-green-400 font-medium">
-                                    Concluída
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )})}
+                    {module.lessons.map((lesson) => (
+                      <LessonCard
+                        key={lesson.id}
+                        title={lesson.title}
+                        duration={lesson.duration}
+                        completed={lesson.completed}
+                        to={`/aulas/${lesson.id}`}
+                      />
+                    ))}
+                  </ModuleCard>
+                );
+              })}
             </>
           )}
 

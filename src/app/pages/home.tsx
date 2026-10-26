@@ -14,6 +14,7 @@ import { Link, useNavigate } from "react-router";
 import { useStore } from "../context/store-context";
 import { BottomNav } from "../components/bottom-nav";
 import { PrimaryButton, PrimaryButtonLink } from "../components/primary-button";
+import { ProgressBar } from "../components/progress-bar";
 import studyImg from "../../imports/imagem-plano-de-estudos.jfif";
 import doubtImg from "../../imports/imagem-tire-suas-duvidas.jfif";
 import logoUniedu from "../../imports/logo-uniedu.png";
@@ -281,12 +282,13 @@ export function HomePage() {
               </div>
 
               {/* Barra de progresso */}
-              <div className="h-1 bg-white/20 rounded-full mb-3 overflow-hidden">
-                <div
-                  className="h-full bg-white/80 rounded-full transition-all duration-500"
-                  style={{ width: `${(jornadaCount / jornadaTotal) * 100}%` }}
-                />
-              </div>
+              <ProgressBar
+                variant="journey"
+                value={jornadaCount}
+                max={jornadaTotal}
+                label="Progresso da jornada de aprendizado"
+                className="mb-3"
+              />
 
               {/* Checklist */}
               <div className="space-y-2">

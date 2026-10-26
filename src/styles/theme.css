@@ -110,8 +110,9 @@
      action/primary-fg → --primary-foreground · border/default → --border
      border/focus → --ring · feedback/danger(-fg) → --destructive(-foreground)
    PROPOSED = valor do Design System que ainda difere do que as telas usam hoje.
-   A migração acontece por lotes. Rodada 3C: Header (header/*), BottomNav (nav/*)
-   e PrimaryButton (action/*) já consomem os tokens; o restante das telas, não.
+   A migração acontece por lotes. 3C: Header (header/*), BottomNav (nav/*) e
+   PrimaryButton (action/*); 3D: ProgressBar, ModuleCard e LessonCard (progress/*,
+   module/*, lesson/*, status/*). O restante das telas ainda não consome os tokens.
 ═══════════════════════════════════════════════════════════════ */
 
 /* ── Primitivos (somente os referenciados pelos tokens semânticos) ── */
@@ -194,28 +195,28 @@
 
   --progress-module-track: var(--palette-white-30);
   --progress-module-fill: var(--palette-neutral-0);
-  --progress-journey-track: var(--palette-black-30);   /* PROPOSED (hoje white/20) */
-  --progress-journey-fill: var(--palette-neutral-0);   /* PROPOSED (hoje white/80) */
+  --progress-journey-track: var(--palette-black-30);   /* aplicado na rodada 3D (antes white/20) */
+  --progress-journey-fill: var(--palette-neutral-0);   /* aplicado na rodada 3D (antes white/80) */
 
   --module-fg: var(--palette-neutral-0);
-  --module-fg-muted: var(--palette-white-95);          /* PROPOSED (hoje white/90) */
-  --module-pink-start: var(--palette-tw-pink-700);     /* PROPOSED (hoje pink-400) */
-  --module-pink-end: var(--palette-tw-rose-700);       /* PROPOSED (hoje rose-400) */
+  --module-fg-muted: var(--palette-white-95);          /* aplicado na rodada 3D (antes white/90) */
+  --module-pink-start: var(--palette-tw-pink-700);     /* aplicado na rodada 3D (antes pink-400) */
+  --module-pink-end: var(--palette-tw-rose-700);       /* aplicado na rodada 3D (antes rose-400) */
   --module-pink-accent: transparent;
-  --module-purple-start: var(--palette-tw-purple-700); /* PROPOSED (hoje purple-400) */
-  --module-purple-end: var(--palette-tw-pink-700);     /* PROPOSED (hoje pink-400) */
+  --module-purple-start: var(--palette-tw-purple-700); /* aplicado na rodada 3D (antes purple-400) */
+  --module-purple-end: var(--palette-tw-pink-700);     /* aplicado na rodada 3D (antes pink-400) */
   --module-purple-accent: transparent;
-  --module-blue-start: var(--palette-tw-blue-700);     /* PROPOSED (hoje blue-400) */
-  --module-blue-end: var(--palette-tw-purple-700);     /* PROPOSED (hoje purple-400) */
+  --module-blue-start: var(--palette-tw-blue-700);     /* aplicado na rodada 3D (antes blue-400) */
+  --module-blue-end: var(--palette-tw-purple-700);     /* aplicado na rodada 3D (antes purple-400) */
   --module-blue-accent: transparent;
-  --module-green-start: var(--palette-tw-emerald-700); /* PROPOSED (hoje emerald-400) */
-  --module-green-end: var(--palette-tw-teal-700);      /* PROPOSED (hoje teal-400) */
+  --module-green-start: var(--palette-tw-emerald-700); /* aplicado na rodada 3D (antes emerald-400) */
+  --module-green-end: var(--palette-tw-teal-700);      /* aplicado na rodada 3D (antes teal-400) */
   --module-green-accent: transparent;
 
   --lesson-tile-start: var(--palette-tw-pink-100);
   --lesson-tile-end: var(--palette-tw-purple-100);
-  --status-success-fg: var(--palette-tw-green-700);    /* PROPOSED (hoje green-600) */
-  --status-success-icon: var(--palette-tw-green-700);  /* PROPOSED (hoje green-500) */
+  --status-success-fg: var(--palette-tw-green-700);    /* aplicado na rodada 3D (antes green-600) */
+  --status-success-icon: var(--palette-tw-green-700);  /* aplicado na rodada 3D (antes green-500) */
 
   --input-bg: var(--palette-tw-gray-100);
   --input-fg: var(--text-content);
