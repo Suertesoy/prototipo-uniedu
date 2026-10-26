@@ -28,6 +28,7 @@ const caseCategories = [
   { id: 6, label: "UI DESIGN", slug: "ui-design", emoji: "💎" },
 ];
 
+// Tags: fundo -100 claro nos dois temas, texto -700 (≥ 4,5:1; os tons -600 ficavam entre 2,9 e 4,3:1)
 const studyPlans = [
   {
     id: 1,
@@ -36,7 +37,7 @@ const studyPlans = [
     description: "5 horas por dia, todos os dias",
     hours: 35,
     tag: "Mais rápido",
-    tagColor: "bg-orange-100 text-orange-600",
+    tagColor: "bg-orange-100 text-orange-700",
   },
   {
     id: 2,
@@ -45,7 +46,7 @@ const studyPlans = [
     description: "2 horas por dia, 5 dias na semana",
     hours: 10,
     tag: "Recomendado",
-    tagColor: "bg-pink-100 text-[#A31545] dark:text-primary",
+    tagColor: "bg-pink-100 text-[#A31545]",
   },
   {
     id: 3,
@@ -54,7 +55,7 @@ const studyPlans = [
     description: "3 dias na semana, 3 horas cada",
     hours: 9,
     tag: "Popular",
-    tagColor: "bg-purple-100 text-purple-600",
+    tagColor: "bg-purple-100 text-purple-700",
   },
   {
     id: 4,
@@ -63,7 +64,7 @@ const studyPlans = [
     description: "1 hora por dia, foco nos fins de semana",
     hours: 5,
     tag: "Flexível",
-    tagColor: "bg-blue-100 text-blue-600",
+    tagColor: "bg-blue-100 text-blue-700",
   },
   {
     id: 5,
@@ -72,7 +73,7 @@ const studyPlans = [
     description: "4 horas por dia, 4 dias na semana",
     hours: 16,
     tag: "Eficiente",
-    tagColor: "bg-green-100 text-green-600",
+    tagColor: "bg-green-100 text-green-700",
   },
 ];
 
@@ -175,13 +176,15 @@ export function HomePage() {
   };
 
   const activePlan = studyPlans.find((p) => p.id === savedPlan);
+  const formattedPoints = userPoints.toLocaleString("pt-BR");
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-gray-50 dark:bg-background relative">
-      {/* Header */}
-      <header className="bg-[#A31545] dark:bg-[#1E1A1D] text-white flex-shrink-0 pt-[calc(env(safe-area-inset-top,0px)+3.5rem)] pb-4 px-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2.5">
+    <div className="h-full flex flex-col overflow-hidden bg-bg-page relative">
+      {/* Header próprio da Home (não é Header/Page): logo, saudação, pontos e atalhos.
+          Superfície sólida em header/bg-start, sem o degradê de Header/Page. */}
+      <header className="bg-header-bg-start text-header-fg flex-shrink-0 pt-[calc(env(safe-area-inset-top,0px)+3.5rem)] pb-4 px-4">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2.5 min-w-0">
             {/* Logo — única */}
             <div className="w-14 h-14 flex-shrink-0 flex items-center justify-center">
               <img
@@ -190,23 +193,39 @@ export function HomePage() {
                 className="w-full h-full object-contain drop-shadow-md"
               />
             </div>
-            <div>
-              <p className="text-xs text-white/80">Olá,</p>
-              <h2 className="text-base font-semibold leading-tight">Fernanda</h2>
-            </div>
+            {/* Spans em bloco: o !important de fonts.css só alcança o h1,
+                então cada linha mantém a família do seu estilo Type/* */}
+            <h1 className="min-w-0">
+              <span className="block type-caption text-header-fg-muted">Olá,</span>
+              <span className="block type-title-md text-header-fg truncate">Fernanda</span>
+            </h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {/* Points pill — live from store */}
-            <Link to="/loja" className="flex items-center gap-1 bg-white/20 rounded-full px-2.5 py-1 active:bg-white/30">
-              <Coins className="w-3.5 h-3.5 text-yellow-200" />
-              <span className="text-[11px] font-bold text-white">{userPoints.toLocaleString("pt-BR")}</span>
+            <Link
+              to="/loja"
+              aria-label={`${formattedPoints} pontos, abrir a loja`}
+              className="flex items-center gap-1 bg-white/20 rounded-full px-2.5 py-1 active:bg-white/30 outline-none focus-visible:ring-2 focus-visible:ring-header-fg"
+            >
+              <Coins className="w-3.5 h-3.5 text-yellow-200" aria-hidden="true" />
+              <span className="type-label-sm text-header-fg tabular-nums">{formattedPoints}</span>
             </Link>
             {/* Toggle dark/light — acesso rápido */}
-            <button onClick={toggleTheme} className="p-1.5 rounded-full bg-white/20 active:bg-white/30" aria-label="Alternar tema">
-              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Ativar tema claro" : "Ativar tema escuro"}
+              className="p-1.5 rounded-full bg-white/20 active:bg-white/30 outline-none focus-visible:ring-2 focus-visible:ring-header-fg"
+            >
+              {theme === "dark" ? <Sun className="w-4 h-4" aria-hidden="true" /> : <Moon className="w-4 h-4" aria-hidden="true" />}
             </button>
-            <button className="p-1.5 rounded-full bg-white/20 active:bg-white/30">
-              <Bell className="w-4 h-4" />
+            {/* Sem ação no protótipo: recebeu só nome acessível e foco */}
+            <button
+              type="button"
+              aria-label="Notificações"
+              className="p-1.5 rounded-full bg-white/20 active:bg-white/30 outline-none focus-visible:ring-2 focus-visible:ring-header-fg"
+            >
+              <Bell className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -218,37 +237,39 @@ export function HomePage() {
 
           {/* ── Hero: Continuar aula (prioridade visual máxima) ── */}
           <section>
-            <p className="text-lg text-[#2F2F35] dark:text-gray-100 mb-2 font-bold">
+            <h2 className="type-heading-sm text-text-primary mb-2">
               Você está aqui:
-            </p>
-            <div className="bg-white dark:bg-card rounded-2xl overflow-hidden shadow-lg border border-gray-200 dark:border-border">
-              {/* Video Thumbnail - fully clickable */}
+            </h2>
+            <div className="bg-card rounded-2xl overflow-hidden shadow-lg border border-border-card">
+              {/* Video Thumbnail - fully clickable (atalho de ponteiro; no teclado a ação é o CONTINUAR) */}
               <div
                 className="relative bg-gray-300 h-44 flex items-center justify-center active:opacity-90 cursor-pointer"
                 onClick={() => navigate("/aulas/1")}
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-[#F48FB1] via-[#EC407A] to-[#A31545]" />
-                {/* Play button */}
-                <div className="relative z-10 w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-md">
+                {/* Play button — círculo branco nos dois temas, então o ícone fica
+                    em pink-700 também no Dark (o rosa-claro dava 2,2:1) */}
+                <div className="relative z-10 w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-md" aria-hidden="true">
                   <Play
-                    className="w-8 h-8 text-[#A31545] dark:text-primary ml-1"
+                    className="w-8 h-8 text-[#A31545] ml-1"
                     fill="currentColor"
                   />
                 </div>
                 {/* Time badge */}
-                <div className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] px-2 py-0.5 rounded font-medium">
-                  {currentTime}/{totalTime}
+                <div className="absolute bottom-2 right-2 bg-black/70 text-white type-caption tabular-nums px-2 py-0.5 rounded">
+                  <span aria-hidden="true">{currentTime}/{totalTime}</span>
+                  <span className="sr-only">Assistido {currentTime} de {totalTime}</span>
                 </div>
-                {/* Progress line at bottom of video */}
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/30">
+                {/* Progresso de reprodução do vídeo — independente da ProgressBar de jornada */}
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/30" aria-hidden="true">
                   <div
-                    className="h-full bg-[#A31545] dark:bg-[#F48FB1]"
+                    className="h-full bg-primary"
                     style={{ width: "65%" }}
                   />
                 </div>
               </div>
-              <div className="px-3 pt-2 pb-3">
-                <p className="text-[11px] text-gray-600 dark:text-gray-400 leading-tight mb-2">
+              <div className="px-3 pt-2.5 pb-3">
+                <p className="type-title-sm text-text-content mb-2.5">
                   {currentLesson}
                 </p>
                 <PrimaryButtonLink to="/aulas/1" size="sm" fullWidth>
@@ -260,23 +281,32 @@ export function HomePage() {
 
           {/* ── Jornada de aprendizado: checklist gamificado ── */}
           <section>
-            <div className="bg-gradient-to-br from-[#F48FB1] via-[#EC407A] to-[#A31545] dark:from-[#1E1A1D] dark:via-[#1A1518] dark:to-[#1C0E15] dark:border dark:border-[#F48FB1]/30 rounded-2xl p-3.5 shadow-md">
+            {/* Light: o degradê começa em pink-700 (Tailwind) em vez de pink-300 (#F48FB1).
+                Branco sobre o início antigo dava 2,2:1 justamente onde ficam o sobretítulo
+                e as primeiras etapas; o ponto mais claro agora dá 5,9:1. Mesmo critério dos
+                módulos na rodada 3D (-700 + texto branco). Dark inalterado. */}
+            <div className="bg-gradient-to-br from-pink-700 via-[#A31545] to-[#7D1133] dark:from-[#1E1A1D] dark:via-[#1A1518] dark:to-[#1C0E15] dark:border dark:border-[#F48FB1]/30 rounded-2xl p-3.5 shadow-md">
 
               {/* Header: label + progresso + help */}
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[9px] font-bold text-white/70 uppercase tracking-widest">
-                  Sua jornada de aprendizado
-                </p>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[9px] font-bold text-white/80 bg-white/15 px-1.5 py-0.5 rounded-full">
-                    {jornadaCount}/{jornadaTotal}
+              <div className="flex items-center justify-between gap-2 mb-2">
+                {/* Span em bloco: o !important de fonts.css só alcança o h2 (Overline é Inter) */}
+                <h2 className="min-w-0">
+                  <span className="block type-overline text-white/90">
+                    Sua jornada de aprendizado
+                  </span>
+                </h2>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <span className="type-label-xs text-white bg-white/15 px-1.5 py-0.5 rounded-full tabular-nums">
+                    <span aria-hidden="true">{jornadaCount}/{jornadaTotal}</span>
+                    <span className="sr-only">{jornadaCount} de {jornadaTotal} etapas concluídas</span>
                   </span>
                   <button
+                    type="button"
                     onClick={() => setShowJornadaOnboarding(true)}
-                    className="p-0.5 rounded-full active:bg-white/20 transition-colors"
+                    className="p-1 rounded-full active:bg-white/20 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-white"
                     aria-label="Entender a jornada"
                   >
-                    <HelpCircle className="w-3.5 h-3.5 text-white/60" />
+                    <HelpCircle className="w-4 h-4 text-white/90" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -298,18 +328,19 @@ export function HomePage() {
                   return (
                     <button
                       key={item.id}
+                      type="button"
                       onClick={() => {
                         handleJornadaToggle(item.id);
                         if (!done) navigate(item.route);
                       }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all duration-300 active:scale-[0.98] ${
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-300 active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-white ${
                         done
                           ? "bg-white/20 border border-white/30"
                           : "bg-white/10 border border-white/10"
                       }`}
                     >
                       {/* Check circle */}
-                      <div className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center border-2 transition-all duration-300 ${
+                      <div aria-hidden="true" className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center border-2 transition-all duration-300 ${
                         done
                           ? "bg-green-400 border-green-400"
                           : "border-white/40 bg-transparent"
@@ -317,20 +348,24 @@ export function HomePage() {
                         {done && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
                       </div>
 
-                      {/* Icon + label */}
-                      <span className="text-sm flex-shrink-0">{item.icon}</span>
-                      <span className={`text-[11px] font-semibold flex-1 text-left leading-tight transition-all duration-300 ${
-                        done ? "text-white/60 line-through" : "text-white"
+                      {/* Icon + label — concluída = check + riscado (não só cor);
+                          texto branco pleno nos dois estados (white/60 dava ~2,6:1) */}
+                      <span className="text-sm flex-shrink-0" aria-hidden="true">{item.icon}</span>
+                      <span className={`type-label-md text-white flex-1 min-w-0 text-left transition-all duration-300 ${
+                        done ? "line-through" : ""
                       }`}>
                         {item.label}
+                        <span className="sr-only">{done ? ", concluída" : ", pendente"}</span>
                       </span>
 
-                      {/* Reward badge */}
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 transition-all duration-300 ${
-                        done
-                          ? "bg-green-400/30 text-green-200"
-                          : "bg-white/15 text-white/70"
-                      } ${flashing ? "scale-125 bg-yellow-400/60 text-yellow-100" : ""}`}>
+                      {/* Reward badge — contador compacto (Label/XS) */}
+                      <span className={`type-label-xs px-1.5 py-0.5 rounded-full flex-shrink-0 transition-all duration-300 ${
+                        flashing
+                          ? "scale-125 bg-yellow-400/60 text-yellow-100"
+                          : done
+                            ? "bg-green-400/30 text-white"
+                            : "bg-white/15 text-white"
+                      }`}>
                         {item.reward}
                       </span>
                     </button>
@@ -341,12 +376,12 @@ export function HomePage() {
               {/* Mensagem de conclusão ou incentivo */}
               {jornadaCount === jornadaTotal ? (
                 <div className="mt-3 bg-white/20 rounded-xl px-3 py-2 text-center transition-all duration-300">
-                  <p className="text-[10px] font-bold text-white">
+                  <p className="type-label-sm text-white">
                     🏆 Jornada completa! Incrível, continue assim!
                   </p>
                 </div>
               ) : (
-                <p className="mt-3 text-[10px] text-white/80 text-center font-medium transition-all duration-300">
+                <p className="mt-3 type-caption text-white/90 text-center transition-all duration-300">
                   Complete sua jornada de hoje para manter o ritmo.
                 </p>
               )}
@@ -355,10 +390,10 @@ export function HomePage() {
 
           {/* Cases e Mini Cases */}
           <section>
-            <p className="text-lg text-[#2F2F35] dark:text-gray-100 mb-0.5 font-bold">
+            <h2 className="type-heading-sm text-text-primary mb-0.5">
               Cases:
-            </p>
-            <p className="text-xs text-gray-500 dark:text-muted-foreground mb-2.5">
+            </h2>
+            <p className="type-caption text-text-meta mb-2.5">
               Projetos para aplicar o que você aprendeu
             </p>
             <div
@@ -369,16 +404,19 @@ export function HomePage() {
                 <Link
                   key={cat.id}
                   to={`/cases/${cat.slug}`}
-                  className="flex-shrink-0 w-[128px] bg-gradient-to-br from-white to-pink-50 dark:from-card dark:to-[#1C0E15] border border-pink-100 dark:border-[#F48FB1]/20 rounded-2xl p-3.5 flex flex-col items-center justify-between active:scale-95 transition-all duration-200 shadow-sm hover:shadow-md"
+                  className="flex-shrink-0 w-[128px] bg-gradient-to-br from-card to-pink-50 dark:to-[#1C0E15] border border-pink-100 dark:border-[#F48FB1]/20 rounded-2xl p-3.5 flex flex-col items-center justify-between active:scale-95 transition-all duration-200 shadow-sm hover:shadow-md outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                   style={{ minHeight: "148px" }}
                 >
                   <div className="flex-1 flex flex-col items-center justify-center gap-2">
-                    <div className="text-4xl mb-1">{cat.emoji}</div>
-                    <p className="text-sm font-bold text-gray-800 dark:text-gray-100 text-center leading-tight">
+                    <div className="text-4xl mb-1" aria-hidden="true">{cat.emoji}</div>
+                    <p className="type-title-sm text-text-content text-center">
                       {cat.label}
                     </p>
                   </div>
-                  <div className="w-full bg-gradient-to-r from-[#A31545] to-pink-600 dark:from-[#F48FB1] dark:to-[#EC407A] text-[10px] py-2.5 rounded-xl font-bold text-white text-center shadow-sm">
+                  {/* Rótulo visual de ação dentro do card-link (não é um 2º controle).
+                      Tipografia = Button/Primary SM; texto em action/primary-fg, que no
+                      Dark é escuro (branco sobre #F48FB1 dava 2,2:1). */}
+                  <div className="w-full bg-gradient-to-r from-primary to-pink-600 dark:to-[#EC407A] text-xs leading-4 font-bold tracking-[0.025em] py-2.5 rounded-xl text-primary-foreground text-center shadow-sm">
                     ACESSAR
                   </div>
                 </Link>
@@ -388,7 +426,8 @@ export function HomePage() {
 
           {/* Plano de estudos */}
           <section>
-            <div className="bg-white dark:bg-card rounded-2xl overflow-hidden shadow-md border border-gray-200 dark:border-border">
+            <h2 className="sr-only">Plano de estudos</h2>
+            <div className="bg-card rounded-2xl overflow-hidden shadow-md border border-border-card">
               <div
                 className="h-40 relative"
                 style={{
@@ -399,7 +438,8 @@ export function HomePage() {
               >
                 {activePlan && (
                   <div className="absolute bottom-2 left-2 right-2 bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1">
-                    <p className="text-gray-800 text-[10px] font-medium">
+                    {/* Superfície clara fixa nos dois temas: texto fixo em gray-800 */}
+                    <p className="type-caption text-gray-800">
                       {activePlan.icon} {activePlan.title}: {activePlan.description}
                     </p>
                   </div>
@@ -423,7 +463,8 @@ export function HomePage() {
 
           {/* Tire suas dúvidas */}
           <section>
-            <div className="bg-white dark:bg-card rounded-2xl overflow-hidden shadow-md border border-gray-200 dark:border-border">
+            <h2 className="sr-only">Tire suas dúvidas</h2>
+            <div className="bg-card rounded-2xl overflow-hidden shadow-md border border-border-card">
               <div
                 className="h-40 relative"
                 style={{
@@ -449,38 +490,47 @@ export function HomePage() {
         <div className="absolute inset-0 z-50 flex flex-col justify-end">
           {/* Backdrop */}
           <div
+            aria-hidden="true"
             className="absolute inset-0 bg-black/50"
             onClick={() => setShowStudyPlanModal(false)}
           />
           {/* Sheet */}
-          <div className="relative bg-white dark:bg-card rounded-t-3xl pt-3 pb-6 max-h-[80%] flex flex-col">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="home-plan-sheet-title"
+            className="relative bg-card rounded-t-3xl pt-3 pb-6 max-h-[80%] flex flex-col"
+          >
             {/* Handle */}
-            <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-3" />
+            <div aria-hidden="true" className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-3" />
 
             {showExplanation ? (
               /* Tela de Explicação */
               <>
                 <div className="px-4 mb-3 flex items-center justify-between flex-shrink-0">
-                  <h3 className="text-base font-semibold dark:text-gray-100">Plano de Estudos</h3>
+                  <h2 id="home-plan-sheet-title" className="type-title-md text-text-content">Plano de Estudos</h2>
                   <button
+                    type="button"
                     onClick={() => setShowStudyPlanModal(false)}
-                    className="p-1 rounded-full bg-gray-100 dark:bg-accent active:bg-gray-200 dark:active:bg-gray-600"
+                    aria-label="Fechar"
+                    className="p-1 rounded-full bg-gray-100 dark:bg-accent active:bg-gray-200 dark:active:bg-gray-600 outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                    <X className="w-4 h-4 text-text-meta" aria-hidden="true" />
                   </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto px-4 pb-4">
                   <div className="text-center mb-4">
-                    <div className="w-20 h-20 bg-gradient-to-br from-pink-100 to-rose-100 dark:from-pink-900/20 dark:to-rose-900/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <div aria-hidden="true" className="w-20 h-20 bg-gradient-to-br from-pink-100 to-rose-100 dark:from-pink-900/20 dark:to-rose-900/20 rounded-full flex items-center justify-center mx-auto mb-3">
                       <span className="text-4xl">📚</span>
                     </div>
-                    <h4 className="text-sm font-bold text-gray-800 dark:text-gray-100 mb-2">
+                    <h3 className="type-title-sm text-text-content mb-2">
                       O que é o Plano de Estudos?
-                    </h4>
+                    </h3>
                   </div>
 
-                  <div className="space-y-3 text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                  {/* Texto explicativo longo: Body/LG (a folha já rola internamente) */}
+                  <div className="space-y-3 type-body-lg text-gray-600 dark:text-gray-400">
                     <p>
                       O <strong>Plano de Estudos</strong> é uma ferramenta que te ajuda a organizar sua rotina de aprendizado de acordo com o tempo que você tem disponível.
                     </p>
@@ -488,7 +538,7 @@ export function HomePage() {
                       Escolha um dos planos disponíveis baseado na sua disponibilidade semanal. Você pode alterar seu plano a qualquer momento conforme sua rotina muda.
                     </p>
                     <div className="bg-pink-50 dark:bg-pink-900/30 border border-pink-200 dark:border-pink-800 rounded-xl p-3 mt-4">
-                      <p className="text-xs font-medium text-[#A31545] dark:text-primary">
+                      <p className="type-body-md text-primary">
                         💡 Dica: Escolha um plano realista para manter a consistência nos estudos!
                       </p>
                     </div>
@@ -504,53 +554,60 @@ export function HomePage() {
             ) : (
               /* Tela de Seleção */
               <>
-                <div className="px-4 mb-3 flex items-center justify-between flex-shrink-0">
-                  <div>
-                    <h3 className="text-base font-semibold dark:text-gray-100">Plano de Estudos</h3>
-                    <p className="text-[10px] text-orange-600 dark:text-orange-400 font-medium mt-0.5">
+                <div className="px-4 mb-3 flex items-center justify-between gap-3 flex-shrink-0">
+                  <div className="min-w-0">
+                    <h2 id="home-plan-sheet-title" className="type-title-md text-text-content">Plano de Estudos</h2>
+                    {/* orange-700 no Light: orange-600 sobre branco dava 3,6:1 */}
+                    <p className="type-label-sm text-orange-700 dark:text-orange-400 mt-0.5">
                       ⚠️ Você está alterando seu plano atual
                     </p>
                   </div>
                   <button
+                    type="button"
                     onClick={() => setShowStudyPlanModal(false)}
-                    className="p-1 rounded-full bg-gray-100 dark:bg-accent active:bg-gray-200 dark:active:bg-gray-600"
+                    aria-label="Fechar"
+                    className="flex-shrink-0 p-1 rounded-full bg-gray-100 dark:bg-accent active:bg-gray-200 dark:active:bg-gray-600 outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                    <X className="w-4 h-4 text-text-meta" aria-hidden="true" />
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 px-4 mb-3 flex-shrink-0">
+                <p className="type-body-md text-text-meta px-4 mb-3 flex-shrink-0">
                   Escolha a meta de estudos que se encaixa na sua rotina:
                 </p>
 
-                <div className="flex-1 overflow-y-auto px-4 space-y-2.5 pb-2">
+                {/* pt-1: espaço para o anel de foco do primeiro item dentro da área rolável */}
+                <div className="flex-1 overflow-y-auto px-4 pt-1 space-y-2.5 pb-2">
                   {studyPlans.map((plan) => (
                     <button
                       key={plan.id}
+                      type="button"
                       onClick={() => setSelectedPlan(plan.id)}
-                      className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all active:scale-[0.99] text-left ${
+                      aria-pressed={selectedPlan === plan.id}
+                      className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all active:scale-[0.99] text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card ${
                         selectedPlan === plan.id
-                          ? "border-[#A31545] dark:border-[#F48FB1] bg-pink-50 dark:bg-pink-900/30"
-                          : "border-gray-100 dark:border-border bg-gray-50 dark:bg-background"
+                          ? "border-primary bg-pink-50 dark:bg-pink-900/30"
+                          : "border-gray-100 dark:border-border bg-bg-page"
                       }`}
                     >
-                      <span className="text-2xl flex-shrink-0">{plan.icon}</span>
+                      <span className="text-2xl flex-shrink-0" aria-hidden="true">{plan.icon}</span>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mb-0.5">
+                          <span className="type-title-sm text-text-content">
                             {plan.title}
                           </span>
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${plan.tagColor}`}>
+                          <span className={`type-label-sm px-1.5 py-0.5 rounded-full ${plan.tagColor}`}>
                             {plan.tag}
                           </span>
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{plan.description}</p>
-                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
+                        {/* gray-600/400: text/meta (gray-500) ficaria 4,4:1 sobre o pink-50 do item selecionado */}
+                        <p className="type-body-md text-gray-600 dark:text-gray-400">{plan.description}</p>
+                        <p className="type-caption text-gray-600 dark:text-gray-400 mt-0.5">
                           ~{plan.hours}h por semana
                         </p>
                       </div>
                       {selectedPlan === plan.id && (
-                        <div className="w-6 h-6 bg-[#A31545] dark:bg-[#F48FB1] rounded-full flex items-center justify-center flex-shrink-0">
-                          <Check className="w-3.5 h-3.5 text-white" />
+                        <div aria-hidden="true" className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+                          <Check className="w-3.5 h-3.5 text-primary-foreground" />
                         </div>
                       )}
                     </button>
@@ -558,16 +615,16 @@ export function HomePage() {
                 </div>
 
                 <div className="px-4 pt-3 flex-shrink-0">
-                  <button
+                  {/* Button/Primary LG; o estado "salvo" troca a superfície por green-700
+                      (branco 5,0:1; green-500/600 davam 2,2 e 3,3:1) */}
+                  <PrimaryButton
+                    size="lg"
+                    fullWidth
                     onClick={handleSavePlan}
-                    className={`w-full py-3.5 rounded-2xl text-sm font-bold tracking-wide transition-all ${
-                      justSaved
-                        ? "bg-green-500 dark:bg-green-600 text-white"
-                        : "bg-[#A31545] dark:bg-[#F48FB1] text-white active:bg-[#7D1133] dark:active:bg-[#EC407A]"
-                    }`}
+                    className={justSaved ? "bg-green-700 text-white enabled:active:bg-green-700" : undefined}
                   >
                     {justSaved ? "✓ SALVO!" : "SALVAR"}
-                  </button>
+                  </PrimaryButton>
                 </div>
               </>
             )}
@@ -580,35 +637,44 @@ export function HomePage() {
         <div className="absolute inset-0 z-50 flex flex-col justify-end">
           {/* Backdrop */}
           <div
+            aria-hidden="true"
             className="absolute inset-0 bg-black/50"
             onClick={() => setShowPlanConfirmation(false)}
           />
           {/* Sheet */}
-          <div className="relative bg-white dark:bg-card rounded-t-3xl pt-3 pb-6 max-h-[80%] flex flex-col">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="home-plan-confirm-title"
+            className="relative bg-card rounded-t-3xl pt-3 pb-6 max-h-[80%] flex flex-col"
+          >
             {/* Handle */}
-            <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-3" />
+            <div aria-hidden="true" className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-3" />
 
             <div className="px-4 mb-3 flex items-center justify-between flex-shrink-0">
-              <h3 className="text-base font-semibold dark:text-gray-100">Plano de Estudos</h3>
+              <h2 id="home-plan-confirm-title" className="type-title-md text-text-content">Plano de Estudos</h2>
               <button
+                type="button"
                 onClick={() => setShowPlanConfirmation(false)}
-                className="p-1 rounded-full bg-gray-100 dark:bg-accent active:bg-gray-200 dark:active:bg-gray-600"
+                aria-label="Fechar"
+                className="p-1 rounded-full bg-gray-100 dark:bg-accent active:bg-gray-200 dark:active:bg-gray-600 outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                <X className="w-4 h-4 text-text-meta" aria-hidden="true" />
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto px-4 pb-4">
               <div className="text-center mb-4">
-                <div className="w-20 h-20 bg-gradient-to-br from-pink-100 to-rose-100 dark:from-pink-900/20 dark:to-rose-900/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                <div aria-hidden="true" className="w-20 h-20 bg-gradient-to-br from-pink-100 to-rose-100 dark:from-pink-900/20 dark:to-rose-900/20 rounded-full flex items-center justify-center mx-auto mb-3">
                   <span className="text-4xl">📚</span>
                 </div>
-                <h4 className="text-sm font-bold text-gray-800 dark:text-gray-100 mb-2">
+                <h3 className="type-title-sm text-text-content mb-2">
                   Plano de Estudos Atualizado
-                </h4>
+                </h3>
               </div>
 
-              <div className="space-y-3 text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+              {/* Texto explicativo longo: Body/LG (a folha já rola internamente) */}
+              <div className="space-y-3 type-body-lg text-gray-600 dark:text-gray-400">
                 <p>
                   Você selecionou o plano <strong>{activePlan?.title}</strong>.
                 </p>
@@ -616,7 +682,7 @@ export function HomePage() {
                   {planHabits[activePlan?.id as number]?.habits}
                 </p>
                 <div className="bg-pink-50 dark:bg-pink-900/30 border border-pink-200 dark:border-pink-800 rounded-xl p-3 mt-4">
-                  <p className="text-xs font-medium text-[#A31545] dark:text-primary">
+                  <p className="type-body-md text-primary">
                     {planHabits[activePlan?.id as number]?.notification}
                   </p>
                 </div>
@@ -635,18 +701,26 @@ export function HomePage() {
       {/* Jornada Onboarding Modal — centro da tela, padrão visual da loja */}
       {showJornadaOnboarding && (
         <div className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center p-6">
-          <div className="bg-white dark:bg-card rounded-3xl p-6 w-full text-center shadow-xl">
+          {/* max-h-full + overflow-y-auto: em telas baixas (ex.: 320×568, 360×640) o
+              conteúdo passava da altura e o ENTENDI ficava inalcançável */}
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="home-jornada-title"
+            aria-describedby="home-jornada-desc"
+            className="bg-card rounded-3xl p-6 w-full max-h-full overflow-y-auto text-center shadow-xl"
+          >
 
             {/* Ícone central */}
-            <div className="w-16 h-16 bg-gradient-to-br from-[#EC407A] to-[#A31545] dark:from-[#F48FB1] dark:to-[#EC407A] rounded-full flex items-center justify-center mx-auto mb-4">
+            <div aria-hidden="true" className="w-16 h-16 bg-gradient-to-br from-[#EC407A] to-[#A31545] dark:from-[#F48FB1] dark:to-[#EC407A] rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-2xl">🦄</span>
             </div>
 
             {/* Título + descrição */}
-            <h3 className="font-black text-[#2F2F35] dark:text-gray-100 mb-1 text-lg">
+            <h2 id="home-jornada-title" className="type-heading-sm text-text-primary mb-1">
               Sua jornada no app
-            </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-5 leading-relaxed">
+            </h2>
+            <p id="home-jornada-desc" className="type-body-md text-text-meta mb-5">
               Veja como evoluir e ganhar recompensas enquanto aprende
             </p>
 
@@ -654,40 +728,40 @@ export function HomePage() {
             <div className="space-y-3 mb-6 text-left">
 
               <div className="bg-pink-50 dark:bg-pink-900/20 rounded-xl p-3 flex items-start gap-3">
-                <ThemedIcon lightSrc={iconPlayLight} darkSrc={iconPlayDark} alt="Aulas" className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <ThemedIcon lightSrc={iconPlayLight} darkSrc={iconPlayDark} alt="" className="w-5 h-5 flex-shrink-0" />
                 <div>
-                  <p className="text-xs font-bold text-gray-800 dark:text-gray-100 mb-0.5">Aprender</p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                  <h3 className="type-title-sm text-text-content mb-0.5">Aprender</h3>
+                  <p className="type-body-md text-gray-600 dark:text-gray-400">
                     Assista às aulas para avançar no curso e ganhar pontos
                   </p>
                 </div>
               </div>
 
               <div className="bg-pink-50 dark:bg-pink-900/20 rounded-xl p-3 flex items-start gap-3">
-                <ThemedIcon lightSrc={iconChatLight} darkSrc={iconChatDark} alt="Comentar" className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <ThemedIcon lightSrc={iconChatLight} darkSrc={iconChatDark} alt="" className="w-5 h-5 flex-shrink-0" />
                 <div>
-                  <p className="text-xs font-bold text-gray-800 dark:text-gray-100 mb-0.5">Interagir</p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                  <h3 className="type-title-sm text-text-content mb-0.5">Interagir</h3>
+                  <p className="type-body-md text-gray-600 dark:text-gray-400">
                     Participe comentando e trocando ideias com a comunidade
                   </p>
                 </div>
               </div>
 
               <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 flex items-start gap-3">
-                <ThemedIcon lightSrc={iconCheckLight} darkSrc={iconCheckDark} alt="Evoluir" className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <ThemedIcon lightSrc={iconCheckLight} darkSrc={iconCheckDark} alt="" className="w-5 h-5 flex-shrink-0" />
                 <div>
-                  <p className="text-xs font-bold text-gray-800 dark:text-gray-100 mb-0.5">Evoluir</p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                  <h3 className="type-title-sm text-text-content mb-0.5">Evoluir</h3>
+                  <p className="type-body-md text-gray-600 dark:text-gray-400">
                     Complete aulas e conquistas para subir de nível
                   </p>
                 </div>
               </div>
 
               <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-3 flex items-start gap-3">
-                <ThemedIcon lightSrc={iconGiftLight} darkSrc={iconGiftDark} alt="Recompensa" className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <ThemedIcon lightSrc={iconGiftLight} darkSrc={iconGiftDark} alt="" className="w-5 h-5 flex-shrink-0" />
                 <div>
-                  <p className="text-xs font-bold text-gray-800 dark:text-gray-100 mb-0.5">Ganhar</p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                  <h3 className="type-title-sm text-text-content mb-0.5">Ganhar</h3>
+                  <p className="type-body-md text-gray-600 dark:text-gray-400">
                     Use seus pontos para resgatar recompensas na loja
                   </p>
                 </div>
@@ -695,13 +769,17 @@ export function HomePage() {
 
             </div>
 
-            {/* CTA */}
+            {/* CTA — mantém o degradê próprio; as paradas são exatamente
+                action/primary → action/primary-pressed nos dois temas.
+                Tipografia e foco = Button/Primary MD; texto em action/primary-fg
+                (branco sobre #F48FB1 no Dark dava 2,2:1). */}
             <button
+              type="button"
               onClick={() => {
                 setShowJornadaOnboarding(false);
                 localStorage.setItem("uniedu_home_onboarding_seen", "true");
               }}
-              className="w-full bg-gradient-to-r from-[#A31545] to-[#7D1133] dark:from-[#F48FB1] dark:to-[#EC407A] text-white text-sm font-bold py-3 rounded-xl active:opacity-90"
+              className="w-full bg-gradient-to-r from-primary to-action-primary-pressed text-primary-foreground text-sm leading-5 font-bold tracking-[0.025em] py-3 rounded-xl active:opacity-90 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               ENTENDI
             </button>
