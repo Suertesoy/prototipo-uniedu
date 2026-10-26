@@ -1,5 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
 
+/* Pesos carregados: Inter 400–700 · Plus Jakarta Sans 500–800.
+   Inconsistência conhecida (auditoria 3A): font-black (900) não tem arquivo
+   carregado. O navegador usa o peso mais próximo acima/abaixo disponível, sem
+   negrito sintético: 800 em Plus Jakarta Sans e 700 em Inter. A escala nova
+   (type-display) usa 800 de propósito; os usos atuais de font-black serão
+   revistos na migração de cada componente. */
+
 :root {
   --font-header: 'Plus Jakarta Sans', sans-serif;
   --font-body: 'Inter', sans-serif;
@@ -9,6 +16,9 @@ body {
   font-family: var(--font-body) !important;
 }
 
+/* Regra AS BUILT mantida de propósito: muitas telas dependem dela para usar
+   Plus Jakarta Sans nos títulos. Remover só depois que os headings migrarem
+   para os utilitários type-* (ver theme.css). */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-header) !important;
   letter-spacing: -0.02em;
