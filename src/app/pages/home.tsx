@@ -13,6 +13,7 @@ import { useTheme } from "../context/theme-context";
 import { Link, useNavigate } from "react-router";
 import { useStore } from "../context/store-context";
 import { BottomNav } from "../components/bottom-nav";
+import { PrimaryButton, PrimaryButtonLink } from "../components/primary-button";
 import studyImg from "../../imports/imagem-plano-de-estudos.jfif";
 import doubtImg from "../../imports/imagem-tire-suas-duvidas.jfif";
 import logoUniedu from "../../imports/logo-uniedu.png";
@@ -249,12 +250,9 @@ export function HomePage() {
                 <p className="text-[11px] text-gray-600 dark:text-gray-400 leading-tight mb-2">
                   {currentLesson}
                 </p>
-                <Link
-                  to="/aulas/1"
-                  className="block w-full bg-[#A31545] dark:bg-[#F48FB1] text-white text-center text-xs font-bold py-2.5 rounded-lg tracking-wide transition-colors duration-200 active:bg-[#7D1133] dark:active:bg-[#EC407A]"
-                >
+                <PrimaryButtonLink to="/aulas/1" size="sm" fullWidth>
                   CONTINUAR
-                </Link>
+                </PrimaryButtonLink>
               </div>
             </div>
           </section>
@@ -406,16 +404,17 @@ export function HomePage() {
                 )}
               </div>
               <div className="px-3 py-2.5">
-                <button
+                <PrimaryButton
+                  size="sm"
+                  fullWidth
                   onClick={() => {
                     setSelectedPlan(savedPlan);
                     setShowExplanation(true);
                     setShowStudyPlanModal(true);
                   }}
-                  className="block w-full bg-[#A31545] dark:bg-[#F48FB1] text-white text-center text-xs font-bold py-2.5 rounded-lg tracking-wide active:bg-[#7D1133] dark:active:bg-[#EC407A]"
                 >
                   VER PLANO
-                </button>
+                </PrimaryButton>
               </div>
             </div>
           </section>
@@ -432,12 +431,9 @@ export function HomePage() {
                 }}
               />
               <div className="px-3 py-2.5">
-                <Link
-                  to="/chat"
-                  className="block w-full bg-[#A31545] dark:bg-[#F48FB1] text-white text-center text-xs font-bold py-2.5 rounded-lg tracking-wide active:bg-[#7D1133] dark:active:bg-[#EC407A]"
-                >
+                <PrimaryButtonLink to="/chat" size="sm" fullWidth>
                   TIRAR DÚVIDAS
-                </Link>
+                </PrimaryButtonLink>
               </div>
             </div>
           </section>
@@ -498,12 +494,9 @@ export function HomePage() {
                 </div>
 
                 <div className="px-4 pt-3 flex-shrink-0">
-                  <button
-                    onClick={() => setShowExplanation(false)}
-                    className="w-full bg-[#A31545] dark:bg-[#F48FB1] text-white py-3.5 rounded-2xl text-sm font-bold tracking-wide active:bg-[#7D1133] dark:active:bg-[#EC407A]"
-                  >
+                  <PrimaryButton size="lg" fullWidth onClick={() => setShowExplanation(false)}>
                     ESCOLHER PLANO
-                  </button>
+                  </PrimaryButton>
                 </div>
               </>
             ) : (
@@ -629,12 +622,9 @@ export function HomePage() {
             </div>
 
             <div className="px-4 pt-3 flex-shrink-0">
-              <button
-                onClick={() => setShowPlanConfirmation(false)}
-                className="w-full bg-[#A31545] dark:bg-[#F48FB1] text-white py-3.5 rounded-2xl text-sm font-bold tracking-wide active:bg-[#7D1133] dark:active:bg-[#EC407A]"
-              >
+              <PrimaryButton size="lg" fullWidth onClick={() => setShowPlanConfirmation(false)}>
                 FECHAR
-              </button>
+              </PrimaryButton>
             </div>
           </div>
         </div>

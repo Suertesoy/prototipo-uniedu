@@ -53,8 +53,8 @@
   /* ── Rosa primário — accent estratégico, não dominante ── */
   --primary: #F48FB1;
   /* DS action/primary-fg (Dark): texto escuro sobre o rosa claro. Branco dava 2,23:1.
-     Hoje só components/ui/* consome esta variável; os CTAs das telas ainda usam
-     text-white direto e serão migrados no lote dos componentes compartilhados. */
+     Consumida por components/ui/* e pelo PrimaryButton (rodada 3C, CTAs da Home);
+     os CTAs das demais telas ainda usam text-white direto até migrarem. */
   --primary-foreground: #120E10;
 
   /* ── Superfícies elevadas ── */
@@ -110,7 +110,8 @@
      action/primary-fg → --primary-foreground · border/default → --border
      border/focus → --ring · feedback/danger(-fg) → --destructive(-foreground)
    PROPOSED = valor do Design System que ainda difere do que as telas usam hoje.
-   Nenhuma tela consome estes tokens ainda: a migração acontece por lotes.
+   A migração acontece por lotes. Rodada 3C: Header (header/*), BottomNav (nav/*)
+   e PrimaryButton (action/*) já consomem os tokens; o restante das telas, não.
 ═══════════════════════════════════════════════════════════════ */
 
 /* ── Primitivos (somente os referenciados pelos tokens semânticos) ── */
@@ -182,14 +183,14 @@
   --header-bg-start: var(--palette-pink-700);
   --header-bg-end: var(--palette-pink-800);
   --header-fg: var(--palette-neutral-0);
-  --header-fg-muted: var(--palette-white-80);          /* PROPOSED (hoje white/65) */
+  --header-fg-muted: var(--palette-white-80);          /* aplicado na rodada 3C (antes white/65) */
   --header-overlay-pressed: var(--palette-white-20);
 
   --nav-bg-start: var(--palette-pink-700);
   --nav-bg-end: var(--palette-pink-800);
   --nav-border-top: transparent;
   --nav-item-active: var(--palette-neutral-0);
-  --nav-item-inactive: var(--palette-white-80);        /* PROPOSED (hoje white/60) */
+  --nav-item-inactive: var(--palette-white-80);        /* aplicado na rodada 3C (antes white/60) */
 
   --progress-module-track: var(--palette-white-30);
   --progress-module-fill: var(--palette-neutral-0);
@@ -244,7 +245,7 @@
   --nav-bg-end: var(--palette-neutral-930);
   --nav-border-top: var(--palette-white-8);
   --nav-item-active: var(--palette-pink-300);
-  --nav-item-inactive: var(--palette-white-55);        /* PROPOSED (hoje white/35) */
+  --nav-item-inactive: var(--palette-white-55);        /* aplicado na rodada 3C (antes white/35) */
 
   --progress-module-track: var(--palette-black-40);
   --progress-module-fill: var(--palette-pink-400);
