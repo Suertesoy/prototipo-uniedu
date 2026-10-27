@@ -77,6 +77,16 @@ const studyPlans = [
   },
 ];
 
+// Mesma chave gravada pelo onboarding inicial (App.tsx). Ausente, corrompida
+// ou de um plano inexistente: cai no Dedicado, o plano recomendado.
+const PLAN_STORAGE_KEY = "uniedu_study_plan_home_id";
+const DEFAULT_PLAN_ID = 2;
+
+function readSavedPlanId() {
+  const id = Number(localStorage.getItem(PLAN_STORAGE_KEY));
+  return studyPlans.some((p) => p.id === id) ? id : DEFAULT_PLAN_ID;
+}
+
 const planHabits: Record<number, { habits: string; notification: string }> = {
   1: {
     habits: "Pessoas que seguem o plano Intensivo costumam estudar nos primeiros momentos do dia — geralmente antes do trabalho. Ritmo acelerado, resultados visíveis em semanas. O segredo está na disciplina e no comprometimento diário.",
@@ -188,7 +198,9 @@ function useDialogFocus(
 
 /** Torna inertes os filhos de `root` que não são camadas de diálogo
     ([data-home-dialog]). Nunca alcança um ancestral do diálogo e não
-    trava a rolagem: as folhas e o onboarding continuam rolando. */
+    trava a rolagem: as folhas e o onboarding continuam rolando.
+    O que fica fora da Home (link do case no App Shell) é avisado pelo
+    evento "uniedu-dialog", no mesmo padrão do "uniedu-logout". */
 function useInertBackground(rootRef: RefObject<HTMLElement | null>, active: boolean) {
   useEffect(() => {
     const root = rootRef.current;
@@ -197,7 +209,11 @@ function useInertBackground(rootRef: RefObject<HTMLElement | null>, active: bool
       (el) => !el.hasAttribute("data-home-dialog") && !el.hasAttribute("inert")
     );
     background.forEach((el) => el.setAttribute("inert", ""));
-    return () => background.forEach((el) => el.removeAttribute("inert"));
+    window.dispatchEvent(new CustomEvent("uniedu-dialog", { detail: true }));
+    return () => {
+      background.forEach((el) => el.removeAttribute("inert"));
+      window.dispatchEvent(new CustomEvent("uniedu-dialog", { detail: false }));
+    };
   }, [rootRef, active]);
 }
 
@@ -207,14 +223,9 @@ export function HomePage() {
   const navigate = useNavigate();
   const [showStudyPlanModal, setShowStudyPlanModal] = useState(false);
   const [showExplanation, setShowExplanation] = useState(true);
-  const [selectedPlan, setSelectedPlan] = useState<number | null>(() => {
-    const stored = localStorage.getItem("uniedu_study_plan_home_id");
-    return stored ? parseInt(stored, 10) : 2;
-  });
-  const [savedPlan, setSavedPlan] = useState<number | null>(() => {
-    const stored = localStorage.getItem("uniedu_study_plan_home_id");
-    return stored ? parseInt(stored, 10) : 2;
-  });
+  // savedPlan espelha o localStorage; selectedPlan é só o rascunho da folha
+  const [savedPlan, setSavedPlan] = useState(readSavedPlanId);
+  const [selectedPlan, setSelectedPlan] = useState(savedPlan);
   const [justSaved, setJustSaved] = useState(false);
   const [showPlanConfirmation, setShowPlanConfirmation] = useState(false);
   const [confirmedPlanId, setConfirmedPlanId] = useState<number | null>(null);
@@ -283,6 +294,9 @@ export function HomePage() {
 
   const handleSavePlan = () => {
     const planId = selectedPlan;
+    // Grava antes do feedback: fechar durante o SALVO! não desfaz a escolha,
+    // e se a gravação falhar nada abaixo roda (a interface não confirma)
+    localStorage.setItem(PLAN_STORAGE_KEY, String(planId));
     clearSaveTimers();
     setSavedPlan(planId);
     setJustSaved(true);

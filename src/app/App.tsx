@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { RouterProvider } from "react-router";
 import { router } from "./routes";
 import { StoreProvider } from "./context/store-context";
@@ -26,6 +26,16 @@ export default function App() {
     const handleLogout = () => setScreen("login");
     window.addEventListener("uniedu-logout", handleLogout);
     return () => window.removeEventListener("uniedu-logout", handleLogout);
+  }, []);
+
+  // Diálogo aberto na Home: o link do case fica fora da tela do app e não é
+  // alcançado pelo inert dela. Atributo via ref (React 18 não conhece "inert").
+  const caseLinkRef = useRef<HTMLAnchorElement>(null);
+  useEffect(() => {
+    const handleDialog = (event: Event) =>
+      caseLinkRef.current?.toggleAttribute("inert", (event as CustomEvent).detail === true);
+    window.addEventListener("uniedu-dialog", handleDialog);
+    return () => window.removeEventListener("uniedu-dialog", handleDialog);
   }, []);
 
   const handleLogin = useCallback(() => {
@@ -91,6 +101,7 @@ export default function App() {
 
                 {/* CTA externo: case study — somente desktop (lg+), fixed para não afetar a centralização do mockup */}
                 <a
+                  ref={caseLinkRef}
                   href="https://case-app-uniedu.vercel.app/"
                   target="_blank"
                   rel="noopener noreferrer"
