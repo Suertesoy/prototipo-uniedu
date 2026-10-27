@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { Bell, Play, Coins, X, Check, HelpCircle, Moon, Sun } from "lucide-react";
 import { ThemedIcon } from "../components/themed-icon";
 import iconPlayLight from "../../imports/icon-play-light.png";
@@ -100,6 +100,107 @@ const planHabits: Record<number, { habits: string; notification: string }> = {
   },
 };
 
+// ── Diálogos modais: foco e fundo inativo ─────────────────────────────────────
+// Só entra no ciclo o que o Tab alcançaria: ficam fora desabilitados,
+// tabindex="-1", ocultos (display/visibility) e o que estiver sob [inert].
+const TABBABLE =
+  'a[href], button, input:not([type="hidden"]), select, textarea, [tabindex]:not([tabindex="-1"])';
+
+function getTabbable(container: HTMLElement) {
+  return Array.from(container.querySelectorAll<HTMLElement>(TABBABLE)).filter(
+    (el) =>
+      el.tabIndex >= 0 &&
+      !el.matches(":disabled") &&
+      !el.closest("[inert]") &&
+      el.getClientRects().length > 0 &&
+      getComputedStyle(el).visibility !== "hidden"
+  );
+}
+
+interface DialogFocusOptions {
+  /** Destino do foco ao abrir. */
+  initialFocus: () => HTMLElement | null | undefined;
+  /** Destino ao fechar quando quem abriu não existe mais (ou não houve quem abrisse). */
+  fallbackFocus: () => HTMLElement | null | undefined;
+  /** Esc: o mesmo fechamento do botão do diálogo. */
+  onEscape: () => void;
+  /** false quando outro diálogo vai assumir o foco logo em seguida. */
+  shouldRestoreFocus?: () => boolean;
+}
+
+function useDialogFocus(
+  dialogRef: RefObject<HTMLElement | null>,
+  open: boolean,
+  options: DialogFocusOptions
+) {
+  const latest = useRef(options);
+  latest.current = options;
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!open || !dialog) return;
+
+    const active = document.activeElement;
+    const opener =
+      active instanceof HTMLElement && active !== document.body && !dialog.contains(active)
+        ? active
+        : null;
+
+    (latest.current.initialFocus() ?? getTabbable(dialog)[0])?.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        latest.current.onEscape();
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      event.preventDefault();
+      const items = getTabbable(dialog);
+      if (items.length === 0) return;
+      const current = document.activeElement;
+      const index = items.indexOf(current as HTMLElement);
+      let next: HTMLElement | undefined;
+      if (index !== -1) {
+        next = items[(index + (event.shiftKey ? items.length - 1 : 1)) % items.length];
+      } else if (current && dialog.contains(current)) {
+        // Foco num elemento não tabulável do diálogo (o título focado na abertura):
+        // segue a ordem do documento a partir dele
+        const after = items.filter(
+          (el) => current.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING
+        );
+        next = event.shiftKey ? items[items.length - after.length - 1] : after[0];
+      }
+      (next ?? (event.shiftKey ? items[items.length - 1] : items[0])).focus();
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (latest.current.shouldRestoreFocus?.() === false) return;
+      // isConnected: no desmonte da página (ou se o controle sumiu) nada é focado
+      const target = opener?.isConnected ? opener : latest.current.fallbackFocus();
+      if (target?.isConnected) target.focus();
+    };
+  }, [open, dialogRef]);
+}
+
+/** Torna inertes os filhos de `root` que não são camadas de diálogo
+    ([data-home-dialog]). Nunca alcança um ancestral do diálogo e não
+    trava a rolagem: as folhas e o onboarding continuam rolando. */
+function useInertBackground(rootRef: RefObject<HTMLElement | null>, active: boolean) {
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!active || !root) return;
+    const background = Array.from(root.children).filter(
+      (el) => !el.hasAttribute("data-home-dialog") && !el.hasAttribute("inert")
+    );
+    background.forEach((el) => el.setAttribute("inert", ""));
+    return () => background.forEach((el) => el.removeAttribute("inert"));
+  }, [rootRef, active]);
+}
+
 export function HomePage() {
   const { userPoints } = useStore();
   const { theme, toggleTheme } = useTheme();
@@ -120,6 +221,19 @@ export function HomePage() {
   const [showJornadaOnboarding, setShowJornadaOnboarding] = useState(
     () => !localStorage.getItem("uniedu_home_onboarding_seen")
   );
+  // Intervalo entre a folha fechar e a confirmação abrir (fluxo do SALVAR)
+  const [confirmationPending, setConfirmationPending] = useState(false);
+  const saveTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const rootRef = useRef<HTMLDivElement>(null);
+  const planTriggerRef = useRef<HTMLDivElement>(null);
+  const planSheetRef = useRef<HTMLDivElement>(null);
+  const planSheetHeadingRef = useRef<HTMLHeadingElement>(null);
+  const planConfirmRef = useRef<HTMLDivElement>(null);
+  const planConfirmHeadingRef = useRef<HTMLHeadingElement>(null);
+  const jornadaHelpRef = useRef<HTMLButtonElement>(null);
+  const jornadaDialogRef = useRef<HTMLDivElement>(null);
+  const jornadaTitleRef = useRef<HTMLHeadingElement>(null);
 
   // ── Jornada interativa ──────────────────────────────────────────────────────
   const jornadaItems = [
@@ -161,25 +275,88 @@ export function HomePage() {
   const currentTime = "28:22";
   const totalTime = "43:39";
 
+  const clearSaveTimers = () => {
+    saveTimersRef.current.forEach(clearTimeout);
+    saveTimersRef.current = [];
+  };
+  useEffect(() => clearSaveTimers, []);
+
   const handleSavePlan = () => {
     const planId = selectedPlan;
+    clearSaveTimers();
     setSavedPlan(planId);
     setJustSaved(true);
-    setTimeout(() => {
+    saveTimersRef.current.push(setTimeout(() => {
       setJustSaved(false);
       setShowStudyPlanModal(false);
-      setTimeout(() => {
+      setConfirmationPending(true);
+      saveTimersRef.current.push(setTimeout(() => {
+        setConfirmationPending(false);
         setConfirmedPlanId(planId);
         setShowPlanConfirmation(true);
-      }, 300);
-    }, 800);
+      }, 300));
+    }, 800));
   };
+
+  // Fechar a folha (X, backdrop ou Esc) cancela uma confirmação ainda agendada
+  const closeStudyPlanModal = () => {
+    clearSaveTimers();
+    setJustSaved(false);
+    setShowStudyPlanModal(false);
+  };
+
+  const dismissJornadaOnboarding = () => {
+    setShowJornadaOnboarding(false);
+    localStorage.setItem("uniedu_home_onboarding_seen", "true");
+  };
+
+  // Declarado antes dos diálogos: ao fechar, o inert sai antes de o foco voltar ao fundo
+  useInertBackground(
+    rootRef,
+    showStudyPlanModal || confirmationPending || showPlanConfirmation || showJornadaOnboarding
+  );
+
+  const planTrigger = () => planTriggerRef.current?.querySelector("button");
+
+  useDialogFocus(planSheetRef, showStudyPlanModal, {
+    initialFocus: () => planSheetHeadingRef.current,
+    fallbackFocus: planTrigger,
+    onEscape: closeStudyPlanModal,
+    // Salvou: a confirmação abre em seguida e assume o foco
+    shouldRestoreFocus: () => !confirmationPending,
+  });
+
+  // A confirmação abre por timer, sem controle de origem: volta ao VER PLANO
+  useDialogFocus(planConfirmRef, showPlanConfirmation, {
+    initialFocus: () => planConfirmHeadingRef.current,
+    fallbackFocus: planTrigger,
+    onEscape: () => setShowPlanConfirmation(false),
+  });
+
+  // Na primeira visita abre sozinho: ao dispensar, o foco vai para o botão
+  // "Entender a jornada", que é por onde o onboarding pode ser reaberto
+  useDialogFocus(jornadaDialogRef, showJornadaOnboarding, {
+    initialFocus: () => jornadaTitleRef.current,
+    fallbackFocus: () => jornadaHelpRef.current,
+    onEscape: dismissJornadaOnboarding,
+  });
+
+  // ESCOLHER PLANO troca o conteúdo da mesma folha e o botão desmonta:
+  // o foco passa para o plano marcado
+  useEffect(() => {
+    if (!showStudyPlanModal || showExplanation) return;
+    const sheet = planSheetRef.current;
+    (
+      sheet?.querySelector<HTMLElement>('[aria-pressed="true"]') ??
+      sheet?.querySelector<HTMLElement>("[aria-pressed]")
+    )?.focus();
+  }, [showStudyPlanModal, showExplanation]);
 
   const activePlan = studyPlans.find((p) => p.id === savedPlan);
   const formattedPoints = userPoints.toLocaleString("pt-BR");
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-bg-page relative">
+    <div ref={rootRef} className="h-full flex flex-col overflow-hidden bg-bg-page relative">
       {/* Header próprio da Home (não é Header/Page): logo, saudação, pontos e atalhos.
           Superfície sólida em header/bg-start, sem o degradê de Header/Page. */}
       <header className="bg-header-bg-start text-header-fg flex-shrink-0 pt-[calc(env(safe-area-inset-top,0px)+3.5rem)] pb-4 px-4">
@@ -241,11 +418,13 @@ export function HomePage() {
               Você está aqui:
             </h2>
             <div className="bg-card rounded-2xl overflow-hidden shadow-lg border border-border-card">
-              {/* Video Thumbnail - fully clickable (atalho de ponteiro; no teclado a ação é o CONTINUAR) */}
-              <div
-                className="relative bg-gray-300 h-44 flex items-center justify-center active:opacity-90 cursor-pointer"
-                onClick={() => navigate("/aulas/1")}
+              {/* Miniatura do vídeo: link para a aula (mesmo destino do CONTINUAR).
+                  Nome acessível = prefixo sr-only + tempo assistido. */}
+              <Link
+                to="/aulas/1"
+                className="group relative bg-gray-300 h-44 flex items-center justify-center active:opacity-90 cursor-pointer outline-none"
               >
+                <span className="sr-only">Continuar aula: {currentLesson}.</span>
                 <div className="absolute inset-0 bg-gradient-to-br from-[#F48FB1] via-[#EC407A] to-[#A31545]" />
                 {/* Play button — círculo branco nos dois temas, então o ícone fica
                     em pink-700 também no Dark (o rosa-claro dava 2,2:1) */}
@@ -267,7 +446,14 @@ export function HomePage() {
                     style={{ width: "65%" }}
                   />
                 </div>
-              </div>
+                {/* Indicador de foco por cima das camadas absolutas (um ring inset
+                    ficaria sob o degradê). Duas cores: o branco some no rosa-claro
+                    e o escuro no #A31545, mas sempre uma delas passa de 3:1. */}
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 z-20 hidden rounded-t-2xl border-[3px] border-white shadow-[inset_0_0_0_2px_#120E10] group-focus-visible:block"
+                />
+              </Link>
               <div className="px-3 pt-2.5 pb-3">
                 <p className="type-title-sm text-text-content mb-2.5">
                   {currentLesson}
@@ -301,6 +487,7 @@ export function HomePage() {
                     <span className="sr-only">{jornadaCount} de {jornadaTotal} etapas concluídas</span>
                   </span>
                   <button
+                    ref={jornadaHelpRef}
                     type="button"
                     onClick={() => setShowJornadaOnboarding(true)}
                     className="p-1 rounded-full active:bg-white/20 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-white"
@@ -445,7 +632,8 @@ export function HomePage() {
                   </div>
                 )}
               </div>
-              <div className="px-3 py-2.5">
+              {/* ref no invólucro: PrimaryButton não repassa ref ao <button> */}
+              <div ref={planTriggerRef} className="px-3 py-2.5">
                 <PrimaryButton
                   size="sm"
                   fullWidth
@@ -487,15 +675,16 @@ export function HomePage() {
 
       {/* Study Plan Modal (Bottom Sheet) */}
       {showStudyPlanModal && (
-        <div className="absolute inset-0 z-50 flex flex-col justify-end">
+        <div data-home-dialog className="absolute inset-0 z-50 flex flex-col justify-end">
           {/* Backdrop */}
           <div
             aria-hidden="true"
             className="absolute inset-0 bg-black/50"
-            onClick={() => setShowStudyPlanModal(false)}
+            onClick={closeStudyPlanModal}
           />
           {/* Sheet */}
           <div
+            ref={planSheetRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="home-plan-sheet-title"
@@ -511,7 +700,7 @@ export function HomePage() {
                   <h2 id="home-plan-sheet-title" className="type-title-md text-text-content">Plano de Estudos</h2>
                   <button
                     type="button"
-                    onClick={() => setShowStudyPlanModal(false)}
+                    onClick={closeStudyPlanModal}
                     aria-label="Fechar"
                     className="p-1 rounded-full bg-gray-100 dark:bg-accent active:bg-gray-200 dark:active:bg-gray-600 outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
@@ -524,7 +713,13 @@ export function HomePage() {
                     <div aria-hidden="true" className="w-20 h-20 bg-gradient-to-br from-pink-100 to-rose-100 dark:from-pink-900/20 dark:to-rose-900/20 rounded-full flex items-center justify-center mx-auto mb-3">
                       <span className="text-4xl">📚</span>
                     </div>
-                    <h3 className="type-title-sm text-text-content mb-2">
+                    {/* Foco inicial: título do conteúdo, dentro da área rolável
+                        (leitura na ordem e setas/espaço rolam o texto) */}
+                    <h3
+                      ref={planSheetHeadingRef}
+                      tabIndex={-1}
+                      className="type-title-sm text-text-content mb-2 outline-none"
+                    >
                       O que é o Plano de Estudos?
                     </h3>
                   </div>
@@ -564,19 +759,25 @@ export function HomePage() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setShowStudyPlanModal(false)}
+                    onClick={closeStudyPlanModal}
                     aria-label="Fechar"
                     className="flex-shrink-0 p-1 rounded-full bg-gray-100 dark:bg-accent active:bg-gray-200 dark:active:bg-gray-600 outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <X className="w-4 h-4 text-text-meta" aria-hidden="true" />
                   </button>
                 </div>
-                <p className="type-body-md text-text-meta px-4 mb-3 flex-shrink-0">
+                <p id="home-plan-options-hint" className="type-body-md text-text-meta px-4 mb-3 flex-shrink-0">
                   Escolha a meta de estudos que se encaixa na sua rotina:
                 </p>
 
-                {/* pt-1: espaço para o anel de foco do primeiro item dentro da área rolável */}
-                <div className="flex-1 overflow-y-auto px-4 pt-1 space-y-2.5 pb-2">
+                {/* pt-1: espaço para o anel de foco do primeiro item dentro da área rolável.
+                    Grupo rotulado: o foco chega direto no plano marcado e o leitor
+                    de tela anuncia a instrução junto. */}
+                <div
+                  role="group"
+                  aria-labelledby="home-plan-options-hint"
+                  className="flex-1 overflow-y-auto px-4 pt-1 space-y-2.5 pb-2"
+                >
                   {studyPlans.map((plan) => (
                     <button
                       key={plan.id}
@@ -634,7 +835,7 @@ export function HomePage() {
 
       {/* Plan Confirmation Modal (Bottom Sheet) */}
       {showPlanConfirmation && (
-        <div className="absolute inset-0 z-50 flex flex-col justify-end">
+        <div data-home-dialog className="absolute inset-0 z-50 flex flex-col justify-end">
           {/* Backdrop */}
           <div
             aria-hidden="true"
@@ -643,6 +844,7 @@ export function HomePage() {
           />
           {/* Sheet */}
           <div
+            ref={planConfirmRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="home-plan-confirm-title"
@@ -668,7 +870,12 @@ export function HomePage() {
                 <div aria-hidden="true" className="w-20 h-20 bg-gradient-to-br from-pink-100 to-rose-100 dark:from-pink-900/20 dark:to-rose-900/20 rounded-full flex items-center justify-center mx-auto mb-3">
                   <span className="text-4xl">📚</span>
                 </div>
-                <h3 className="type-title-sm text-text-content mb-2">
+                {/* Foco inicial (mesmo critério da explicação) */}
+                <h3
+                  ref={planConfirmHeadingRef}
+                  tabIndex={-1}
+                  className="type-title-sm text-text-content mb-2 outline-none"
+                >
                   Plano de Estudos Atualizado
                 </h3>
               </div>
@@ -700,10 +907,11 @@ export function HomePage() {
 
       {/* Jornada Onboarding Modal — centro da tela, padrão visual da loja */}
       {showJornadaOnboarding && (
-        <div className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center p-6">
+        <div data-home-dialog className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center p-6">
           {/* max-h-full + overflow-y-auto: em telas baixas (ex.: 320×568, 360×640) o
               conteúdo passava da altura e o ENTENDI ficava inalcançável */}
           <div
+            ref={jornadaDialogRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="home-jornada-title"
@@ -717,7 +925,14 @@ export function HomePage() {
             </div>
 
             {/* Título + descrição */}
-            <h2 id="home-jornada-title" className="type-heading-sm text-text-primary mb-1">
+            {/* Foco inicial no título: em telas baixas o ENTENDI fica abaixo da
+                dobra e focá-lo rolaria o conteúdo para fora da vista */}
+            <h2
+              ref={jornadaTitleRef}
+              id="home-jornada-title"
+              tabIndex={-1}
+              className="type-heading-sm text-text-primary mb-1 outline-none"
+            >
               Sua jornada no app
             </h2>
             <p id="home-jornada-desc" className="type-body-md text-text-meta mb-5">
@@ -775,10 +990,7 @@ export function HomePage() {
                 (branco sobre #F48FB1 no Dark dava 2,2:1). */}
             <button
               type="button"
-              onClick={() => {
-                setShowJornadaOnboarding(false);
-                localStorage.setItem("uniedu_home_onboarding_seen", "true");
-              }}
+              onClick={dismissJornadaOnboarding}
               className="w-full bg-gradient-to-r from-primary to-action-primary-pressed text-primary-foreground text-sm leading-5 font-bold tracking-[0.025em] py-3 rounded-xl active:opacity-90 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               ENTENDI
