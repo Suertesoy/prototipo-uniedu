@@ -114,7 +114,9 @@
    PrimaryButton (action/*); 3D: ProgressBar, ModuleCard e LessonCard (progress/*,
    module/*, lesson/*, status/*); 3E: busca e abas de Aulas (input/*, tab/*) e
    demais conteúdos da tela; 3F: Home; 3I: Loja (header/*, input/*, action/*,
-   status/*, tab/inactive-fg nos filtros). As outras telas ainda não consomem os tokens.
+   status/*, tab/inactive-fg nos filtros); 3K: Aula Detalhe (header/* nas ações,
+   tab/*, input/*, action/*, status/*, lesson/tile, text/*, border/*).
+   As outras telas ainda não consomem os tokens.
 ═══════════════════════════════════════════════════════════════ */
 
 /* ── Primitivos (somente os referenciados pelos tokens semânticos) ── */
