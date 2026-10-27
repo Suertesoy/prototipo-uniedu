@@ -3,6 +3,8 @@ import { useCurrentLesson } from "../context/lesson-context";
 import { useStore } from "../context/store-context";
 import { useNotes, type Note } from "../context/notes-context";
 import { LevelUpAnimation } from "../components/level-up-animation";
+import { useDialogFocus } from "../hooks/use-dialog-focus";
+import { useInertBackground } from "../hooks/use-inert-background";
 import { useState, useRef, useEffect, useId } from "react";
 import { BottomNav } from "../components/bottom-nav";
 import { Header } from "../components/header";
@@ -170,6 +172,20 @@ export function AulaDetalhePage() {
   const [quickDraft, setQuickDraft] = useState("");
   const [selectedColor, setSelectedColor] = useState<Note["color"]>("yellow");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const quickNoteRef = useRef<HTMLDivElement>(null);
+  // Quem abriu o editor (botão do vídeo, Nova anotação ou FAB). Guardado no
+  // clique porque o Safari não foca botões tocados com o mouse.
+  const quickNoteOpenerRef = useRef<HTMLElement | null>(null);
+  const newNoteButtonRef = useRef<HTMLButtonElement>(null);
+  const fabRef = useRef<HTMLButtonElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const levelUpRef = useRef<HTMLDivElement>(null);
+
+  const openQuickNote = (e: React.MouseEvent<HTMLElement>) => {
+    quickNoteOpenerRef.current = e.currentTarget;
+    setShowQuickNote(true);
+  };
+  const closeQuickNote = () => setShowQuickNote(false);
 
   /* ── Inline edit state ── */
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -177,6 +193,24 @@ export function AulaDetalhePage() {
 
   /* ── Deleted animation ── */
   const [deletedId, setDeletedId] = useState<string | null>(null);
+  // Uma exclusão pendente por nota (animação de 300 ms antes de remover)
+  const deleteTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const lessonNotesRef = useRef(lessonNotes);
+  lessonNotesRef.current = lessonNotes;
+  const deleteNoteRef = useRef(deleteNote);
+  deleteNoteRef.current = deleteNote;
+
+  // Saiu da página no meio da animação: a nota é removida na hora, sem mexer no foco
+  useEffect(
+    () => () => {
+      deleteTimers.current.forEach((timer, noteId) => {
+        clearTimeout(timer);
+        deleteNoteRef.current(noteId);
+      });
+      deleteTimers.current.clear();
+    },
+    []
+  );
 
   /* ── Toast ── */
   const [toast, setToast] = useState<string | null>(null);
@@ -186,10 +220,6 @@ export function AulaDetalhePage() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 2500);
   };
-
-  useEffect(() => {
-    if (showQuickNote) setTimeout(() => textareaRef.current?.focus(), 100);
-  }, [showQuickNote]);
 
   /* ── Foco perdido por troca de estado ──
      O botão que recebeu o toque some quando o estado do vídeo muda (play →
@@ -280,12 +310,35 @@ export function AulaDetalhePage() {
     setActiveTab("notes");
   };
 
+  /* O botão Excluir some com a nota: se o foco ainda estava nela (ou caiu no
+     <body>), passa para a próxima nota, senão a anterior, senão para Nova
+     anotação. Se a pessoa já levou o foco para outro lugar, fica onde está. */
   const handleDelete = (noteId: string) => {
+    if (deleteTimers.current.has(noteId)) return;
     setDeletedId(noteId);
-    setTimeout(() => {
+    deleteTimers.current.set(noteId, setTimeout(() => {
+      deleteTimers.current.delete(noteId);
+      const active = document.activeElement;
+      const focusWasOnNote =
+        !active ||
+        active === document.body ||
+        active.closest("[data-note-id]")?.getAttribute("data-note-id") === noteId;
+      const list = lessonNotesRef.current;
+      const index = list.findIndex((n) => n.id === noteId);
+
       deleteNote(noteId);
-      setDeletedId(null);
-    }, 300);
+      setDeletedId((current) => (current === noteId ? null : current));
+
+      // index -1: a aula mudou durante a animação, a lista já é outra
+      if (!focusWasOnNote || index === -1) return;
+      const neighbor = [...list.slice(index + 1), ...list.slice(0, index).reverse()].find(
+        (n) => !deleteTimers.current.has(n.id)
+      );
+      const target = neighbor
+        ? rootRef.current?.querySelector<HTMLElement>(`[data-note-id="${neighbor.id}"] [data-note-delete]`)
+        : newNoteButtonRef.current;
+      target?.focus();
+    }, 300));
   };
 
   const handleSaveEdit = (noteId: string) => {
@@ -294,6 +347,34 @@ export function AulaDetalhePage() {
     setEditingId(null);
     showToast("Anotação atualizada ✓");
   };
+
+  /* ── Camadas modais: editor rápido e animação de XP ──
+     Nunca abrem juntas (cada uma deixa a outra inalcançável), então um único
+     fundo inerte serve às duas. Declarado antes dos diálogos: ao fechar, o
+     inert sai antes de o foco voltar ao fundo. Toast e status (aria-live)
+     continuam fora do inert e seguem anunciando. */
+  useInertBackground(rootRef, showQuickNote || showLevelUp);
+
+  useDialogFocus(quickNoteRef, showQuickNote, {
+    // Escrever é a ação principal do editor
+    initialFocus: () => textareaRef.current,
+    fallbackFocus: () => {
+      const opener = quickNoteOpenerRef.current;
+      if (opener?.isConnected && opener.getClientRects().length > 0) return opener;
+      return newNoteButtonRef.current ?? fabRef.current;
+    },
+    // Mesmo fechamento do X: o rascunho é mantido
+    onEscape: closeQuickNote,
+  });
+
+  // Sem botões na fase de progresso: o foco vai para a própria camada. Quem
+  // abriu (o banner de resgate) desmonta ao fechar: o foco vai para Próxima.
+  useDialogFocus(levelUpRef, showLevelUp, {
+    initialFocus: () => levelUpRef.current,
+    fallbackFocus: () => nextBannerButtonRef.current,
+    // Só dispensa a animação; o XP e os pontos já foram somados no resgate
+    onEscape: handleCloseLevelUp,
+  });
 
   const onlineCount = studentsInLesson.filter((s) => s.status === "online").length;
   const pausedCount = studentsInLesson.filter((s) => s.status === "paused").length;
@@ -324,6 +405,7 @@ export function AulaDetalhePage() {
   };
 
   const quickNoteTitleId = `${idPrefix}-quick-note-title`;
+  const quickNoteLessonId = `${idPrefix}-quick-note-lesson`;
   const quickNoteCounterId = `${idPrefix}-quick-note-counter`;
   const colorLabelId = `${idPrefix}-color-label`;
   const commentHintId = `${idPrefix}-comment-hint`;
@@ -362,7 +444,7 @@ export function AulaDetalhePage() {
   };
 
   return (
-    <div className="h-full bg-bg-page flex flex-col overflow-hidden relative">
+    <div ref={rootRef} className="h-full bg-bg-page flex flex-col overflow-hidden relative">
       {/* ─────────────────────────────────────────────────────────────────
           HEADER — module as title, lesson name as subtitle.
           Both truncate to 1 line; long strings never break the layout.
@@ -493,7 +575,7 @@ export function AulaDetalhePage() {
         {/* ✏️ Quick note button — always visible on video */}
         <button
           type="button"
-          onClick={() => setShowQuickNote(true)}
+          onClick={openQuickNote}
           className="absolute top-2 right-2 min-h-8 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm text-white rounded-full px-3 active:bg-black/80 transition-all outline-none focus-visible:ring-2 focus-visible:ring-white"
         >
           <PenLine className="w-3.5 h-3.5" aria-hidden="true" />
@@ -693,8 +775,9 @@ export function AulaDetalhePage() {
             <>
               {/* Add note CTA */}
               <button
+                ref={newNoteButtonRef}
                 type="button"
-                onClick={() => setShowQuickNote(true)}
+                onClick={openQuickNote}
                 className="w-full border-2 border-dashed border-[#A31545]/40 dark:border-[#B8467A]/40 bg-pink-50/60 dark:bg-pink-900/10 rounded-2xl py-4 px-4 flex items-center justify-center gap-2.5 active:bg-pink-100 dark:active:bg-pink-900/20 outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <div className="w-7 h-7 bg-primary rounded-full flex items-center justify-center shadow-sm flex-shrink-0" aria-hidden="true">
@@ -726,6 +809,7 @@ export function AulaDetalhePage() {
                     return (
                       <li
                         key={note.id}
+                        data-note-id={note.id}
                         className={`rounded-2xl border-2 p-4 transition-all duration-300 ${cs.bg} ${cs.border} ${
                           isDeleting ? "opacity-0 scale-95" : "opacity-100 scale-100"
                         }`}
@@ -756,6 +840,7 @@ export function AulaDetalhePage() {
                             )}
                             <button
                               type="button"
+                              data-note-delete
                               aria-label="Excluir anotação"
                               onClick={() => handleDelete(note.id)}
                               className="p-2 rounded-full bg-white/70 dark:bg-white/10 active:bg-white outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -964,25 +1049,31 @@ export function AulaDetalhePage() {
 
       {/* ── FAB: Anotar (floating above bottom nav) ── */}
       <button
+        ref={fabRef}
         type="button"
-        onClick={() => setShowQuickNote(true)}
+        onClick={openQuickNote}
         className="absolute bottom-[72px] right-4 z-30 min-h-11 flex items-center gap-2 bg-primary text-primary-foreground rounded-full px-4 shadow-lg active:bg-action-primary-pressed active:scale-95 transition-transform outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         <PenLine className="w-4 h-4" aria-hidden="true" />
         <span className="type-label-md">Anotar</span>
       </button>
 
-      {/* ── Quick Note Bottom Sheet ──
-          Ainda sem role="dialog"/aria-modal, Esc e foco preso: migração para
-          useDialogFocus/useInertBackground fica para a rodada de interações. */}
+      {/* ── Quick Note Bottom Sheet ── diálogo modal (useDialogFocus + fundo inerte) */}
       {showQuickNote && (
-        <div className="absolute inset-0 z-50 flex flex-col justify-end">
+        <div data-dialog-layer className="absolute inset-0 z-50 flex flex-col justify-end">
           <div
             className="absolute inset-0 bg-black/50"
             aria-hidden="true"
-            onClick={() => setShowQuickNote(false)}
+            onClick={closeQuickNote}
           />
-          <div className="relative bg-card rounded-t-3xl pt-3 pb-6 flex flex-col max-h-full overflow-y-auto">
+          <div
+            ref={quickNoteRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={quickNoteTitleId}
+            aria-describedby={quickNoteLessonId}
+            className="relative bg-card rounded-t-3xl pt-3 pb-6 flex flex-col max-h-full overflow-y-auto"
+          >
             {/* Handle */}
             <div className="w-10 h-1 bg-gray-200 dark:bg-gray-600 rounded-full mx-auto mb-3 flex-shrink-0" aria-hidden="true" />
 
@@ -990,12 +1081,12 @@ export function AulaDetalhePage() {
             <div className="flex items-start justify-between gap-3 px-4 pb-3 border-b border-border-divider flex-shrink-0">
               <div className="min-w-0">
                 <h2 id={quickNoteTitleId} className="type-title-sm text-text-content">Nova anotação</h2>
-                <p className="type-caption text-text-meta mt-0.5 line-clamp-2">{lesson.title}</p>
+                <p id={quickNoteLessonId} className="type-caption text-text-meta mt-0.5 line-clamp-2">{lesson.title}</p>
               </div>
               <button
                 type="button"
                 aria-label="Fechar"
-                onClick={() => setShowQuickNote(false)}
+                onClick={closeQuickNote}
                 className="flex-shrink-0 p-2 rounded-full bg-gray-100 dark:bg-accent active:bg-gray-200 dark:active:bg-[#525252] outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <X className="w-4 h-4 text-text-meta" aria-hidden="true" />
@@ -1031,15 +1122,18 @@ export function AulaDetalhePage() {
             <div className={`mx-4 rounded-2xl border-2 p-3 focus-within:ring-2 focus-within:ring-ring ${colorStyle(selectedColor).bg} ${colorStyle(selectedColor).border}`}>
               <textarea
                 ref={textareaRef}
-                aria-labelledby={quickNoteTitleId}
+                aria-label="Texto da anotação"
                 aria-describedby={quickNoteCounterId}
                 placeholder="Digite sua anotação aqui..."
                 value={quickDraft}
                 onChange={(e) => setQuickDraft(e.target.value)}
+                maxLength={500}
                 rows={4}
                 className="w-full bg-transparent type-body-md text-text-content placeholder:text-input-placeholder resize-none outline-none"
               />
-              <p id={quickNoteCounterId} className="type-caption text-text-meta text-right">{quickDraft.length}/500</p>
+              <p id={quickNoteCounterId} className="type-caption text-text-meta text-right">
+                {quickDraft.length}/500<span className="sr-only"> caracteres</span>
+              </p>
             </div>
 
             {/* Save button */}
@@ -1075,6 +1169,7 @@ export function AulaDetalhePage() {
       {/* ── Level Up Animation ── */}
       {levelUpData && (
         <LevelUpAnimation
+          dialogRef={levelUpRef}
           isOpen={showLevelUp}
           onClose={handleCloseLevelUp}
           currentLevel={levelUpData.level}

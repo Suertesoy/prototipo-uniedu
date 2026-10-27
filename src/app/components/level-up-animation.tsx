@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Award, Sparkles } from "lucide-react";
 
@@ -7,39 +7,71 @@ interface LevelUpAnimationProps {
   onClose: () => void;
   currentLevel: number;
   xpGained?: number; // XP ganho (padrão 100 = barra cheia)
+  /** Camada do diálogo: quem renderiza controla foco e fundo inerte
+      (useDialogFocus + useInertBackground), como na Home e na Loja. */
+  dialogRef?: RefObject<HTMLDivElement | null>;
 }
 
-export function LevelUpAnimation({ isOpen, onClose, currentLevel, xpGained = 100 }: LevelUpAnimationProps) {
+/* Camada modal: cobre a tela e bloqueia o fundo enquanto aberta. Sem botões na
+   fase de progresso (o foco fica na própria camada); na fase "LEVEL UP!" o
+   "Toque para continuar" é um botão com o mesmo visual. */
+export function LevelUpAnimation({ isOpen, onClose, currentLevel, xpGained = 100, dialogRef }: LevelUpAnimationProps) {
   const [progress, setProgress] = useState(0);
   const [showLevelUp, setShowLevelUp] = useState(false);
   const leveledUp = xpGained >= 100;
+  const continueRef = useRef<HTMLButtonElement>(null);
+  const titleId = useId();
+  const descId = useId();
+
+  // onClose lido por ref: um novo onClose a cada render do pai não reinicia os timers
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
-    if (isOpen) {
-      // Anima a barra de progresso até o valor de XP ganho
-      setTimeout(() => setProgress(xpGained), 300);
-
-      // Se subiu de nível (xp >= 100), mostra animação de level up
-      if (leveledUp) {
-        setTimeout(() => setShowLevelUp(true), 1500);
-      } else {
-        // Se não subiu de nível, fecha automaticamente após a animação
-        setTimeout(() => onClose(), 2000);
-      }
-    } else {
+    if (!isOpen) {
       setProgress(0);
       setShowLevelUp(false);
+      return;
     }
-  }, [isOpen, xpGained, leveledUp, onClose]);
+    // Anima a barra de progresso até o valor de XP ganho
+    const timers = [setTimeout(() => setProgress(xpGained), 300)];
+
+    // Se subiu de nível (xp >= 100), mostra animação de level up
+    if (leveledUp) {
+      timers.push(setTimeout(() => setShowLevelUp(true), 1500));
+    } else {
+      // Se não subiu de nível, fecha automaticamente após a animação
+      timers.push(setTimeout(() => onCloseRef.current(), 2000));
+    }
+    // Fechou antes (Esc) ou desmontou: nenhum timer dispara depois
+    return () => timers.forEach(clearTimeout);
+  }, [isOpen, xpGained, leveledUp]);
+
+  // Ao surgir o "Toque para continuar", o foco passa da camada para ele
+  useEffect(() => {
+    if (showLevelUp && document.activeElement === dialogRef?.current) continueRef.current?.focus();
+  }, [showLevelUp, dialogRef]);
 
   if (!isOpen) return null;
 
   return (
     <AnimatePresence>
       <div
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80"
+        ref={dialogRef}
+        data-dialog-layer
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descId}
+        tabIndex={-1}
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 outline-none"
         onClick={showLevelUp ? onClose : undefined}
       >
+        <p id={descId} className="sr-only">
+          {showLevelUp
+            ? `Você ganhou +${xpGained} XP e subiu para o nível ${currentLevel}.`
+            : `Você ganhou +${xpGained} XP.`}
+        </p>
         <div className="relative flex flex-col items-center px-8">
           {/* Partículas de fundo */}
           {showLevelUp && (
@@ -47,6 +79,7 @@ export function LevelUpAnimation({ isOpen, onClose, currentLevel, xpGained = 100
               {[...Array(16)].map((_, i) => (
                 <motion.div
                   key={i}
+                  aria-hidden="true"
                   initial={{ opacity: 0, scale: 0, x: 0, y: 0 }}
                   animate={{
                     opacity: [0, 1, 0],
@@ -69,15 +102,15 @@ export function LevelUpAnimation({ isOpen, onClose, currentLevel, xpGained = 100
               className="w-full max-w-xs"
             >
               <div className="text-center mb-4">
-                <p className="text-white text-sm font-medium mb-2">Ganhando XP...</p>
+                <p id={titleId} className="text-white text-sm font-medium mb-2">Ganhando XP...</p>
                 <div className="flex items-center justify-center gap-2 mb-3">
-                  <Award className="w-5 h-5 text-[#A31545]" />
+                  <Award className="w-5 h-5 text-[#A31545]" aria-hidden="true" />
                   <span className="text-2xl font-black text-white">Nível {currentLevel}</span>
                 </div>
               </div>
 
-              {/* Barra de progresso */}
-              <div className="relative">
+              {/* Barra de progresso — decorativa: o XP ganho está na descrição do diálogo */}
+              <div className="relative" aria-hidden="true">
                 <div className="h-4 bg-white/20 rounded-full overflow-hidden border-2 border-white/30">
                   <motion.div
                     initial={{ width: 0 }}
@@ -116,6 +149,7 @@ export function LevelUpAnimation({ isOpen, onClose, currentLevel, xpGained = 100
                 animate={{ scale: [0, 1.2, 1], rotate: 0 }}
                 transition={{ duration: 0.8, delay: 0.2 }}
                 className="relative mb-6"
+                aria-hidden="true"
               >
                 {/* Brilho de fundo */}
                 <motion.div
@@ -143,11 +177,11 @@ export function LevelUpAnimation({ isOpen, onClose, currentLevel, xpGained = 100
                 transition={{ delay: 0.5 }}
                 className="text-center"
               >
-                <h2 className="text-3xl font-black text-white mb-2">LEVEL UP!</h2>
+                <h2 id={titleId} className="text-3xl font-black text-white mb-2">LEVEL UP!</h2>
                 <p className="text-white/80 text-sm mb-6">Você subiu de nível!</p>
 
                 {/* Sparkles */}
-                <div className="flex gap-2 justify-center mb-6">
+                <div className="flex gap-2 justify-center mb-6" aria-hidden="true">
                   {[...Array(5)].map((_, i) => (
                     <motion.div
                       key={i}
@@ -167,14 +201,17 @@ export function LevelUpAnimation({ isOpen, onClose, currentLevel, xpGained = 100
                   ))}
                 </div>
 
-                <motion.p
+                {/* Sem onClick próprio: o clique (ou Enter/Espaço) sobe para a camada, que fecha */}
+                <motion.button
+                  ref={continueRef}
+                  type="button"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: [0, 1, 0.7, 1] }}
                   transition={{ duration: 1.5, delay: 0.8, repeat: Infinity }}
-                  className="text-white text-sm font-medium"
+                  className="text-white text-sm font-medium rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-4 focus-visible:outline-white"
                 >
                   Toque para continuar
-                </motion.p>
+                </motion.button>
               </motion.div>
             </motion.div>
           )}
