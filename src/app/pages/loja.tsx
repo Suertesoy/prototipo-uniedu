@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { BottomNav } from "../components/bottom-nav";
-import { Search, ShoppingCart, Coins, X, CheckCircle, Trash2, HelpCircle } from "lucide-react";
+import { PrimaryButton } from "../components/primary-button";
+import { Search, ShoppingCart, Coins, X, Check, CheckCircle, Trash2, HelpCircle } from "lucide-react";
 import { useStore, CartItem } from "../context/store-context";
 import { ThemedIcon } from "../components/themed-icon";
 import iconPlayLight from "../../imports/icon-play-light.png";
@@ -108,6 +109,23 @@ const gradients: Record<string, string> = {
   Prêmio: "from-pink-100 to-rose-100",
 };
 
+// Ações que geram pontos: usadas no hint expansível e na faixa compacta
+const earnActions = [
+  { lightSrc: iconPlayLight,      darkSrc: iconPlayDark,      label: "Aula concluída", pts: "+50 pts" },
+  { lightSrc: iconChatLight,      darkSrc: iconChatDark,      label: "Comentar",       pts: "+10 pts" },
+  { lightSrc: iconCommunityLight, darkSrc: iconCommunityDark, label: "Publicar",       pts: "+50 pts" },
+] as const;
+
+const formatPoints = (value: number) => value.toLocaleString("pt-BR");
+
+/* Estados sem ação (Pontos insuficientes / No carrinho) são informativos:
+   ficam como blocos, nunca como botões ativos. */
+const insufficientBlockClass =
+  "w-full bg-gray-100 dark:bg-accent text-gray-600 dark:text-gray-400 type-label-md py-3 rounded-xl text-center";
+
+const closeButtonClass =
+  "p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-accent outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
 export function LojaPage() {
   const { userPoints, cartItems, addToCart, removeFromCart, checkout, totalCartPrice, isInCart } =
     useStore();
@@ -155,105 +173,125 @@ export function LojaPage() {
     }
   };
 
+  const cartCountLabel = `${cartItems.length} ${cartItems.length === 1 ? "item" : "itens"}`;
+
+  // Três cards com altura igual; em 320px o rótulo quebra em duas linhas em vez de encolher
+  const earnActionsList = (
+    <ul className="flex gap-2">
+      {earnActions.map((item) => (
+        <li
+          key={item.label}
+          className="flex-1 min-w-0 flex flex-col items-center gap-1 bg-pink-50 dark:bg-pink-900/10 rounded-lg px-1.5 py-2 text-center"
+        >
+          <ThemedIcon lightSrc={item.lightSrc} darkSrc={item.darkSrc} className="w-5 h-5" />
+          <span className="type-caption text-text-content">{item.label}</span>
+          <span className="type-label-sm text-primary tabular-nums">{item.pts}</span>
+        </li>
+      ))}
+    </ul>
+  );
+
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-gray-50 dark:bg-background">
-      {/* Header */}
-      <header className="bg-[#A31545] dark:bg-[#1E1A1D] border-b border-pink-700 dark:border-white/8 flex-shrink-0 pt-9">
+    <div className="h-full flex flex-col overflow-hidden bg-bg-page">
+      {/* Header próprio da Loja (não é Header/Page): ajuda, carrinho e busca */}
+      <header className="bg-header-bg-start border-b border-pink-700 dark:border-white/8 flex-shrink-0 pt-9">
         <div className="px-4 py-2 flex items-center justify-between">
-          <h1 className="text-base font-semibold text-white">Loja</h1>
+          <h1 className="type-title-md text-header-fg">Loja</h1>
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={() => setShowHint((v) => !v)}
-              className={`p-2 rounded-full transition-colors ${showHint ? "bg-white/30" : "active:bg-white/20"}`}
               aria-label="Como funciona a loja"
+              aria-expanded={showHint}
+              className={`p-2 rounded-full text-header-fg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-header-fg ${
+                showHint ? "bg-white/30" : "active:bg-header-overlay-pressed"
+              }`}
             >
-              <HelpCircle className="w-5 h-5 text-white" />
+              <HelpCircle className="w-5 h-5" aria-hidden="true" />
             </button>
             <button
+              type="button"
               onClick={() => setShowCart(true)}
-              className="relative p-2 rounded-full active:bg-white/20"
+              aria-label={cartItems.length > 0 ? `Abrir carrinho, ${cartCountLabel}` : "Abrir carrinho"}
+              className="relative p-2 rounded-full text-header-fg active:bg-header-overlay-pressed outline-none focus-visible:ring-2 focus-visible:ring-header-fg"
             >
-              <ShoppingCart className="w-5 h-5 text-white" />
-            {cartItems.length > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-white text-[#A31545] text-[9px] font-bold rounded-full flex items-center justify-center">
-                {cartItems.length}
-              </span>
-            )}
-          </button>
+              <ShoppingCart className="w-5 h-5" aria-hidden="true" />
+              {cartItems.length > 0 && (
+                <span
+                  aria-hidden="true"
+                  className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-header-fg text-header-bg-start type-label-xs tabular-nums rounded-full flex items-center justify-center"
+                >
+                  {cartItems.length}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
-        {/* Search */}
+        {/* Search — mesma lógica de filtragem; superfície input/* legível nos dois temas */}
         <div className="px-4 pb-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/70" />
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-input-placeholder"
+            />
             <input
               type="text"
+              aria-label="Buscar produtos"
               placeholder="Buscar produtos..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-white/20 placeholder-white/70 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-white text-sm"
+              className="w-full pl-9 pr-4 py-2 bg-input-bg text-input-fg placeholder:text-input-placeholder type-body-md rounded-lg outline-none focus:ring-2 focus:ring-header-fg"
             />
           </div>
         </div>
       </header>
 
-      {/* Points Banner */}
-      <div className="flex-shrink-0 bg-gradient-to-r from-[#A31545] to-[#7D1133] dark:from-[#1C0E15] dark:to-[#160B11] px-4 py-2.5">
-        <div className="flex items-center justify-between text-white">
-          <div className="flex items-center gap-2">
-            <Coins className="w-4 h-4" />
-            <div key={userPoints} className="animate-pop-in inline-block origin-left">
-              <span className="text-sm font-bold">{userPoints.toLocaleString("pt-BR")} pts</span>
-              <span className="text-[10px] text-white/70 ml-1.5">disponíveis para resgate</span>
-            </div>
+      {/* Points Banner — o texto quebra de linha em telas estreitas em vez de estourar */}
+      <div className="flex-shrink-0 bg-gradient-to-r from-header-bg-start to-header-bg-end px-4 py-2.5">
+        <div className="flex items-center justify-between gap-3 text-header-fg">
+          <div className="flex items-center gap-2 min-w-0">
+            <Coins className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+            <p key={userPoints} className="animate-pop-in origin-left min-w-0">
+              <span className="type-label-md tabular-nums">{formatPoints(userPoints)} pts</span>{" "}
+              <span className="type-caption text-header-fg-muted">disponíveis para resgate</span>
+            </p>
           </div>
-          <span className="text-[9px] text-white/60 font-medium">Ganhe estudando ↓</span>
+          <span className="type-caption text-header-fg-muted whitespace-nowrap flex-shrink-0">
+            Ganhe estudando <span aria-hidden="true">↓</span>
+          </span>
         </div>
       </div>
 
       {/* ── Hint expansível: como ganhar pontos (sem overlay) ── */}
       {showHint && (
-        <div className="flex-shrink-0 bg-white dark:bg-card border-b border-gray-200 dark:border-border px-4 pt-3 pb-3 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide">
+        <div className="flex-shrink-0 bg-card border-b border-border-card px-4 pt-3 pb-3 shadow-sm">
+          <div className="flex items-center justify-between mb-1">
+            <p className="type-overline text-text-meta">
               Como funciona a loja
             </p>
             <button
+              type="button"
               onClick={() => setShowHint(false)}
-              className="p-0.5 rounded-full active:bg-gray-100 dark:active:bg-gray-700"
+              aria-label="Fechar explicação da loja"
+              className="-m-1.5 p-1.5 rounded-full active:bg-gray-100 dark:active:bg-accent outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <X className="w-3.5 h-3.5 text-gray-400" />
+              <X className="w-4 h-4 text-text-meta" aria-hidden="true" />
             </button>
           </div>
 
           {/* Earn + Redeem mini description */}
-          <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed mb-2.5">
+          <p className="type-body-md text-gray-600 dark:text-gray-400 mb-3">
             Ganhe pontos nas aulas e na comunidade, depois resgate recompensas exclusivas aqui.
           </p>
 
           {/* 3 earning actions */}
-          <div className="flex gap-2 mb-2.5">
-            {([
-              { lightSrc: iconPlayLight,      darkSrc: iconPlayDark,      label: "Aula concluída", pts: "+50 pts" },
-              { lightSrc: iconChatLight,      darkSrc: iconChatDark,      label: "Comentar",       pts: "+10 pts" },
-              { lightSrc: iconCommunityLight, darkSrc: iconCommunityDark, label: "Publicar",       pts: "+50 pts" },
-            ] as const).map((item) => (
-              <div
-                key={item.label}
-                className="flex-1 flex flex-col items-center gap-0.5 bg-pink-50 dark:bg-pink-900/10 rounded-lg py-1.5 px-1"
-              >
-                <ThemedIcon lightSrc={item.lightSrc} darkSrc={item.darkSrc} alt={item.label} className="w-4 h-4" />
-                <span className="text-[8px] text-gray-500 dark:text-gray-400 text-center leading-tight">{item.label}</span>
-                <span className="text-[9px] font-bold text-[#A31545] dark:text-primary">{item.pts}</span>
-              </div>
-            ))}
-          </div>
+          <div className="mb-3">{earnActionsList}</div>
 
           {/* Journey reminder */}
-          <div className="flex items-center gap-1.5 bg-purple-50 dark:bg-purple-900/20 rounded-lg px-2.5 py-1.5">
-            <span className="text-xs">🦄</span>
-            <p className="text-[10px] text-purple-600 dark:text-purple-300 leading-tight">
+          <div className="flex items-center gap-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg px-3 py-2">
+            <span className="text-sm" aria-hidden="true">🦄</span>
+            <p className="type-caption text-purple-600 dark:text-purple-300">
               <strong>Aprender → Interagir → Evoluir → Ganhar.</strong>{" "}
               Cada ação na Home conta pontos aqui.
             </p>
@@ -263,26 +301,11 @@ export function LojaPage() {
 
       {/* ── Strip contextual permanente (apenas quando hint fechado) ── */}
       {!showHint && (
-        <div className="flex-shrink-0 bg-white dark:bg-card border-b border-gray-200 dark:border-border px-4 py-2.5">
-          <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">
+        <div className="flex-shrink-0 bg-card border-b border-border-card px-4 py-2.5">
+          <p className="type-overline text-text-meta mb-2">
             Ganhe pontos estudando e participando
           </p>
-          <div className="flex gap-2">
-            {([
-              { lightSrc: iconPlayLight,      darkSrc: iconPlayDark,      label: "Aula concluída", pts: "+50 pts" },
-              { lightSrc: iconChatLight,      darkSrc: iconChatDark,      label: "Comentar",       pts: "+10 pts" },
-              { lightSrc: iconCommunityLight, darkSrc: iconCommunityDark, label: "Publicar",       pts: "+50 pts" },
-            ] as const).map((item) => (
-              <div
-                key={item.label}
-                className="flex-1 flex flex-col items-center gap-0.5 bg-pink-50 dark:bg-pink-900/10 rounded-lg py-1.5 px-1"
-              >
-                <ThemedIcon lightSrc={item.lightSrc} darkSrc={item.darkSrc} alt={item.label} className="w-4 h-4" />
-                <span className="text-[8px] text-gray-500 dark:text-gray-400 text-center leading-tight">{item.label}</span>
-                <span className="text-[9px] font-bold text-[#A31545] dark:text-primary">{item.pts}</span>
-              </div>
-            ))}
-          </div>
+          {earnActionsList}
         </div>
       )}
 
@@ -291,104 +314,130 @@ export function LojaPage() {
         {/* Featured Item */}
         <div className="px-4 pt-4">
           <button
+            type="button"
             onClick={() => setSelectedItem(featuredItem)}
-            className="w-full rounded-2xl overflow-hidden shadow-md border border-gray-200 dark:border-border relative active:scale-[0.99] transition-transform"
+            className="w-full bg-card rounded-2xl overflow-hidden shadow-md border border-border-card relative text-left active:scale-[0.99] transition-transform outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-page"
           >
-            <div
-              className="h-[140px] relative overflow-hidden"
+            <span
+              className="block h-[140px] relative overflow-hidden"
               style={{
                 backgroundImage: `url(${getProductImage(featuredItem.id)})`,
                 backgroundSize: '120%',
                 backgroundPosition: 'center',
               }}
             >
-              <div className="absolute bottom-3 right-3 bg-black/70 text-white text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1">
-                <Coins className="w-3 h-3" />
-                {featuredItem.price.toLocaleString("pt-BR")}
-              </div>
-            </div>
-            <div className="bg-white dark:bg-card px-3 py-2 text-left">
-              <p className="text-[11px] font-bold text-gray-800 dark:text-gray-100">{featuredItem.name}</p>
-              <p className="text-[10px] text-gray-500 dark:text-gray-400">{featuredItem.description}</p>
-            </div>
+              <span className="absolute bottom-3 right-3 bg-black/70 text-white type-label-sm tabular-nums px-2.5 py-1 rounded-lg flex items-center gap-1">
+                <Coins className="w-3.5 h-3.5" aria-hidden="true" />
+                {formatPoints(featuredItem.price)} pts
+              </span>
+            </span>
+            <span className="block px-3 py-2.5">
+              <span className="block type-title-sm text-text-content">{featuredItem.name}</span>
+              <span className="block mt-0.5 type-caption text-text-meta">{featuredItem.description}</span>
+            </span>
           </button>
         </div>
 
-        {/* Categories */}
-        <div className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-hide">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[10px] font-semibold transition-colors ${
-                activeCategory === cat
-                  ? "bg-[#A31545] dark:bg-[#F48FB1] text-white"
-                  : "bg-white dark:bg-card text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-border"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
+        {/* Categories — rolagem horizontal só na faixa; ativo = preenchido + check */}
+        <div
+          role="group"
+          aria-label="Filtrar por categoria"
+          className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-hide"
+        >
+          {categories.map((cat) => {
+            const isActive = activeCategory === cat;
+            return (
+              <button
+                type="button"
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                aria-pressed={isActive}
+                className={`flex-shrink-0 inline-flex items-center gap-1 px-3.5 py-2 rounded-full border type-label-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-page ${
+                  isActive
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card text-tab-inactive-fg border-border-card active:bg-muted"
+                }`}
+              >
+                {isActive && <Check className="w-3.5 h-3.5" strokeWidth={2.5} aria-hidden="true" />}
+                {cat}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Items Grid */}
-        <div className="px-4 pb-4">
-          <div className="grid grid-cols-3 gap-2.5">
-            {filteredItems.map((item) => {
-              const inCart = isInCart(item.id);
-              const justAdded = addedFeedback === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setSelectedItem(item)}
-                  className="bg-white dark:bg-card rounded-2xl overflow-hidden shadow-md border border-gray-200 dark:border-border active:scale-95 transition-transform relative"
-                >
-                  {inCart && (
-                    <div className="absolute top-1.5 right-1.5 w-4 h-4 bg-[#A31545] rounded-full flex items-center justify-center z-10">
-                      <span className="text-white text-[8px] font-bold">✓</span>
-                    </div>
-                  )}
-                  <div className="p-2.5 space-y-2">
-                    {/* Item image */}
-                    <div
-                      className="aspect-square rounded-xl overflow-hidden"
-                      style={{
-                        backgroundImage: `url(${getProductImage(item.id)})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                      }}
-                    />
-                    {/* Name */}
-                    <p className="text-[9px] font-semibold text-center text-gray-700 dark:text-gray-200 leading-tight line-clamp-2">
-                      {item.name}
-                    </p>
-                    {/* Price */}
-                    <div className={`flex items-center justify-center gap-1 rounded-lg py-1 ${
-                      userPoints >= item.price
-                        ? "bg-[#A31545] dark:bg-[#F48FB1]"
-                        : "bg-gray-200 dark:bg-accent"
-                    }`}>
-                      <Coins className={`w-3 h-3 ${userPoints >= item.price ? "text-white" : "text-gray-500 dark:text-gray-400"}`} />
-                      <span className={`text-[10px] font-bold ${userPoints >= item.price ? "text-white" : "text-gray-500 dark:text-gray-400"}`}>
-                        {item.price}
+        {/* Items Grid — container query: mede a área real (também no frame de 393px do desktop).
+            3 colunas só a partir de 360px de conteúdo (~392px de tela), onde cada card
+            ainda tem ~95px úteis para nome em Title/SM e preço em Label/SM; abaixo, 2 colunas. */}
+        <div className="@container px-4 pb-4">
+          {filteredItems.length > 0 && (
+            <ul className="grid grid-cols-2 gap-2.5 @min-[360px]:grid-cols-3">
+              {filteredItems.map((item) => {
+                const inCart = isInCart(item.id);
+                const canAfford = userPoints >= item.price;
+                return (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedItem(item)}
+                      className="w-full h-full flex flex-col bg-card rounded-2xl overflow-hidden shadow-md border border-border-card p-2.5 @min-[360px]:p-2 text-center active:scale-95 transition-transform outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-page"
+                    >
+                      {/* Item image — 4:3 em 2 colunas para não alongar o card; quadrada em 3 */}
+                      <span
+                        className="relative block w-full aspect-[4/3] @min-[360px]:aspect-square rounded-xl overflow-hidden"
+                        style={{
+                          backgroundImage: `url(${getProductImage(item.id)})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                        }}
+                      >
+                        {inCart && (
+                          <span
+                            aria-hidden="true"
+                            className="absolute top-1.5 right-1.5 w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center ring-2 ring-card"
+                          >
+                            <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                          </span>
+                        )}
                       </span>
-                    </div>
-                    {/* Faltam X pts */}
-                    {userPoints < item.price && (
-                      <p className="text-[8px] text-center text-orange-500 dark:text-orange-400 leading-tight">
-                        Faltam {(item.price - userPoints).toLocaleString("pt-BR")} pts
-                      </p>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+                      {/* Name — reserva 2 linhas para alinhar os preços da mesma fileira */}
+                      <span className="mt-2 type-title-sm text-text-content line-clamp-2 min-h-10">
+                        {item.name}
+                      </span>
+                      {/* Price */}
+                      <span
+                        className={`mt-1.5 flex items-center justify-center gap-1 rounded-lg px-1 py-1.5 type-label-sm tabular-nums ${
+                          canAfford
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-gray-100 dark:bg-accent text-gray-600 dark:text-gray-400"
+                        }`}
+                      >
+                        <Coins className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
+                        {formatPoints(item.price)} pts
+                      </span>
+                      {/* Estado: no carrinho / faltam X pts */}
+                      {inCart ? (
+                        <span className="mt-1.5 flex items-center justify-center gap-1 type-label-sm text-status-success-fg">
+                          <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
+                          No carrinho
+                        </span>
+                      ) : (
+                        !canAfford && (
+                          <span className="mt-1.5 type-caption text-orange-700 dark:text-orange-400 text-balance">
+                            Faltam {formatPoints(item.price - userPoints)} pts
+                          </span>
+                        )
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
 
           {filteredItems.length === 0 && (
-            <div className="text-center py-10 text-gray-400">
-              <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p className="text-xs">Nenhum produto encontrado</p>
+            <div className="text-center py-10">
+              <Search className="w-8 h-8 mx-auto mb-2 text-text-meta opacity-60" aria-hidden="true" />
+              <p className="type-body-md text-text-meta">Nenhum produto encontrado</p>
             </div>
           )}
         </div>
@@ -396,29 +445,27 @@ export function LojaPage() {
 
       {/* Cart Banner - Fixed Bottom */}
       {cartItems.length > 0 && (
-        <div className="flex-shrink-0 bg-gradient-to-r from-[#A31545] to-[#7D1133] dark:from-[#1C0E15] dark:to-[#160B11] px-4 py-3 shadow-lg">
+        <div className="flex-shrink-0 bg-gradient-to-r from-header-bg-start to-header-bg-end px-4 py-3 shadow-lg">
           <div className="flex items-center gap-3">
-            {/* Total - Left Side */}
-            <div className="flex-1 flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-xl px-4 py-3">
-              <ShoppingCart className="w-5 h-5 text-white" />
-              <div className="flex-1">
-                <p className="text-[10px] text-white/80 font-medium">Total do carrinho</p>
-                <div className="flex items-center gap-1">
-                  <Coins className="w-4 h-4 text-white" />
-                  <span className="text-sm font-bold text-white">
-                    {totalCartPrice.toLocaleString("pt-BR")} pts
-                  </span>
-                </div>
+            {/* Total - Left Side (texto em header-fg: o muted ficava abaixo de 4,5:1 sobre o white/20) */}
+            <div className="flex-1 min-w-0 flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-xl px-3 py-2.5 text-header-fg">
+              <ShoppingCart className="w-5 h-5 flex-shrink-0 max-[360px]:hidden" aria-hidden="true" />
+              <div className="min-w-0">
+                <p className="type-caption">Total do carrinho</p>
+                <p className="flex items-center gap-1 type-label-md tabular-nums">
+                  <Coins className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+                  {formatPoints(totalCartPrice)} pts
+                </p>
               </div>
             </div>
 
             {/* Button - Right Side */}
-            <button
+            <PrimaryButton
               onClick={() => setShowCart(true)}
-              className="bg-[#A31545] dark:bg-[#F48FB1] text-white font-bold px-5 py-3 rounded-xl active:bg-[#7D1133] dark:active:bg-[#EC407A] transition-colors whitespace-nowrap text-sm border-2 border-white/30"
+              className="px-4 whitespace-nowrap border-2 border-white/30 focus-visible:outline-header-fg"
             >
               Ver Carrinho
-            </button>
+            </PrimaryButton>
           </div>
         </div>
       )}
@@ -428,7 +475,7 @@ export function LojaPage() {
       {/* Item Detail Modal */}
       {selectedItem && (
         <div className="absolute inset-0 bg-black/50 z-40 flex items-end">
-          <div className="bg-white dark:bg-card w-full rounded-t-3xl p-5 animate-slide-up">
+          <div className="bg-card w-full max-h-[90%] overflow-y-auto rounded-t-3xl p-5 animate-slide-up">
             <div className="flex items-start justify-between mb-4">
               <div
                 className="w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0"
@@ -439,64 +486,65 @@ export function LojaPage() {
                 }}
               />
               <button
+                type="button"
                 onClick={() => setSelectedItem(null)}
-                className="p-1 hover:bg-gray-100 rounded-full"
+                aria-label="Fechar detalhes do produto"
+                className={closeButtonClass}
               >
-                <X className="w-5 h-5 text-gray-500" />
+                <X className="w-5 h-5 text-text-meta" aria-hidden="true" />
               </button>
             </div>
-            <span className="inline-block bg-pink-50 dark:bg-pink-900/30 text-[#A31545] dark:text-primary text-[10px] font-bold px-2 py-0.5 rounded-full mb-1">
+            <span className="inline-block bg-pink-50 dark:bg-pink-900/30 text-primary type-label-sm px-2.5 py-0.5 rounded-full mb-2">
               {selectedItem.category}
             </span>
-            <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-1">{selectedItem.name}</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 leading-relaxed">{selectedItem.description}</p>
+            <h3 className="type-heading-sm text-text-content mb-1">{selectedItem.name}</h3>
+            <p className="type-body-md text-gray-600 dark:text-gray-400 mb-4">{selectedItem.description}</p>
 
-            <div className="flex items-center justify-between mb-4 bg-gray-50 dark:bg-background rounded-xl p-3">
-              <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
-                <Coins className="w-4 h-4 text-[#A31545] dark:text-primary" />
-                <span className="text-sm font-bold text-gray-900 dark:text-gray-100">
-                  {selectedItem.price.toLocaleString("pt-BR")} pts
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-4 bg-bg-page rounded-xl p-3">
+              <div className="flex items-center gap-1.5">
+                <Coins className="w-4 h-4 text-primary" aria-hidden="true" />
+                <span className="type-title-md text-text-content tabular-nums">
+                  {formatPoints(selectedItem.price)} pts
                 </span>
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">
+              <p className="type-caption text-text-meta">
                 Você tem:{" "}
                 <span
-                  className={`font-semibold ${
-                    userPoints >= selectedItem.price ? "text-green-600" : "text-red-500"
+                  className={`type-label-sm tabular-nums ${
+                    userPoints >= selectedItem.price
+                      ? "text-status-success-fg"
+                      : "text-red-700 dark:text-red-400"
                   }`}
                 >
-                  {userPoints.toLocaleString("pt-BR")} pts
+                  {formatPoints(userPoints)} pts
                 </span>
-              </div>
+              </p>
             </div>
 
             {isInCart(selectedItem.id) ? (
-              <div className="w-full bg-green-100 text-green-700 text-sm font-bold py-3 rounded-xl text-center flex items-center justify-center gap-2">
-                <CheckCircle className="w-4 h-4" />
+              <div className="w-full bg-green-50 dark:bg-green-900/30 text-status-success-fg type-label-md py-3 rounded-xl text-center flex items-center justify-center gap-2">
+                <CheckCircle className="w-4 h-4" aria-hidden="true" />
                 No carrinho
               </div>
             ) : userPoints < selectedItem.price ? (
               <div className="space-y-2">
-                <div className="w-full bg-gray-100 text-gray-500 text-xs font-bold py-3 rounded-xl text-center">
+                <div className={insufficientBlockClass}>
                   Pontos insuficientes
                 </div>
-                <p className="text-center text-[10px] text-gray-400">
-                  Faltam {(selectedItem.price - userPoints).toLocaleString("pt-BR")} pontos
+                <p className="text-center type-caption text-text-meta">
+                  Faltam {formatPoints(selectedItem.price - userPoints)} pontos
                 </p>
                 <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/10 rounded-xl px-3 py-2 border border-amber-200 dark:border-amber-800/40">
-                  <span className="text-sm">📚</span>
-                  <p className="text-[10px] text-amber-700 dark:text-amber-400 leading-tight">
+                  <span className="text-sm" aria-hidden="true">📚</span>
+                  <p className="type-caption text-amber-700 dark:text-amber-400">
                     Continue estudando e participando para alcançar esta recompensa!
                   </p>
                 </div>
               </div>
             ) : (
-              <button
-                onClick={() => handleAddToCart(selectedItem)}
-                className="w-full bg-[#A31545] dark:bg-[#F48FB1] text-white text-sm font-bold py-3 rounded-xl active:bg-[#7D1133] dark:active:bg-[#EC407A] transition-colors"
-              >
+              <PrimaryButton fullWidth onClick={() => handleAddToCart(selectedItem)}>
                 Adicionar ao Carrinho
-              </button>
+              </PrimaryButton>
             )}
           </div>
         </div>
@@ -505,38 +553,41 @@ export function LojaPage() {
       {/* Cart Panel */}
       {showCart && (
         <div className="absolute inset-0 bg-black/50 z-40 flex flex-col justify-end">
-          <div className="bg-white dark:bg-card rounded-t-3xl flex flex-col max-h-[85%]">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-border">
+          <div className="bg-card rounded-t-3xl flex flex-col max-h-[85%]">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border-divider">
               <div className="flex items-center gap-2">
-                <ShoppingCart className="w-5 h-5 text-[#A31545] dark:text-primary" />
-                <h3 className="font-bold text-gray-900 dark:text-gray-100">Carrinho</h3>
+                <ShoppingCart className="w-5 h-5 text-primary" aria-hidden="true" />
+                <h3 className="type-title-md text-text-content">Carrinho</h3>
                 {cartItems.length > 0 && (
-                  <span className="bg-[#A31545] dark:bg-[#F48FB1] text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                  <span className="min-w-5 h-5 px-1 bg-primary text-primary-foreground type-label-xs tabular-nums rounded-full flex items-center justify-center">
                     {cartItems.length}
+                    <span className="sr-only"> {cartItems.length === 1 ? "item" : "itens"}</span>
                   </span>
                 )}
               </div>
               <button
+                type="button"
                 onClick={() => setShowCart(false)}
-                className="p-1 hover:bg-gray-100 rounded-full"
+                aria-label="Fechar carrinho"
+                className={closeButtonClass}
               >
-                <X className="w-5 h-5 text-gray-500" />
+                <X className="w-5 h-5 text-text-meta" aria-hidden="true" />
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto">
               {cartItems.length === 0 ? (
-                <div className="text-center py-12 text-gray-400">
-                  <ShoppingCart className="w-10 h-10 mx-auto mb-2 opacity-40" />
-                  <p className="text-sm font-medium">Seu carrinho está vazio</p>
-                  <p className="text-xs mt-1">Adicione produtos para continuar</p>
+                <div className="text-center py-12 px-4">
+                  <ShoppingCart className="w-10 h-10 mx-auto mb-2 text-text-meta opacity-60" aria-hidden="true" />
+                  <p className="type-title-sm text-text-content">Seu carrinho está vazio</p>
+                  <p className="type-caption text-text-meta mt-1">Adicione produtos para continuar</p>
                 </div>
               ) : (
-                <div className="p-4 space-y-3">
+                <ul className="p-4 space-y-3">
                   {cartItems.map((item) => (
-                    <div
+                    <li
                       key={item.id}
-                      className="flex items-center gap-3 bg-gray-50 dark:bg-background rounded-xl p-3"
+                      className="flex items-center gap-3 bg-bg-page rounded-xl p-3"
                     >
                       <div
                         className="w-12 h-12 rounded-xl flex-shrink-0 overflow-hidden"
@@ -547,59 +598,61 @@ export function LojaPage() {
                         }}
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate">{item.name}</p>
+                        <p className="type-label-md text-text-content line-clamp-2">{item.name}</p>
                         <div className="flex items-center gap-1 mt-0.5">
-                          <Coins className="w-3 h-3 text-[#A31545] dark:text-primary" />
-                          <span className="text-xs font-bold text-[#A31545] dark:text-primary">{item.price} pts</span>
+                          <Coins className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
+                          <span className="type-label-sm text-primary tabular-nums">{formatPoints(item.price)} pts</span>
                         </div>
                       </div>
                       <button
+                        type="button"
                         onClick={() => removeFromCart(item.id)}
-                        className="p-1.5 hover:bg-gray-200 rounded-lg"
+                        aria-label={`Remover ${item.name} do carrinho`}
+                        className="flex-shrink-0 p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-accent outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
-                        <Trash2 className="w-4 h-4 text-gray-400" />
+                        <Trash2 className="w-4 h-4 text-text-meta" aria-hidden="true" />
                       </button>
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
               )}
             </div>
 
             {cartItems.length > 0 && (
-              <div className="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-border">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Total:</span>
+              <div className="px-4 pb-4 pt-3 border-t border-border-divider">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="type-body-md text-text-meta">Total:</span>
                   <div className="flex items-center gap-1">
-                    <Coins className="w-4 h-4 text-[#A31545] dark:text-primary" />
-                    <span className="font-bold text-gray-900 dark:text-gray-100">
-                      {totalCartPrice.toLocaleString("pt-BR")} pts
+                    <Coins className="w-4 h-4 text-primary" aria-hidden="true" />
+                    <span className="type-title-md text-text-content tabular-nums">
+                      {formatPoints(totalCartPrice)} pts
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center justify-between mb-3 text-xs text-gray-500 dark:text-gray-400">
-                  <span>Seus pontos:</span>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="type-caption text-text-meta">Seus pontos:</span>
                   <span
-                    className={`font-semibold ${
-                      userPoints >= totalCartPrice ? "text-green-600" : "text-red-500"
+                    className={`type-label-sm tabular-nums ${
+                      userPoints >= totalCartPrice ? "text-status-success-fg" : "text-red-700 dark:text-red-400"
                     }`}
                   >
-                    {userPoints.toLocaleString("pt-BR")} pts
+                    {formatPoints(userPoints)} pts
                   </span>
                 </div>
                 {userPoints < totalCartPrice ? (
-                  <div className="w-full bg-gray-100 text-gray-500 text-sm font-bold py-3 rounded-xl text-center">
+                  <div className={insufficientBlockClass}>
                     Pontos insuficientes
                   </div>
                 ) : (
-                  <button
+                  <PrimaryButton
+                    fullWidth
                     onClick={() => {
                       setShowCart(false);
                       setShowCheckout(true);
                     }}
-                    className="w-full bg-[#A31545] dark:bg-[#F48FB1] text-white text-sm font-bold py-3 rounded-xl active:bg-[#7D1133] dark:active:bg-[#EC407A]"
                   >
                     Resgatar
-                  </button>
+                  </PrimaryButton>
                 )}
               </div>
             )}
@@ -610,61 +663,59 @@ export function LojaPage() {
       {/* Checkout Confirmation */}
       {showCheckout && (
         <div className="absolute inset-0 bg-black/50 z-50 flex items-center justify-center p-6">
-          <div className="bg-white dark:bg-card rounded-3xl p-6 w-full shadow-xl">
+          <div className="bg-card rounded-3xl p-6 w-full max-h-full overflow-y-auto shadow-xl">
             <div className="text-center mb-5">
               <div className="w-16 h-16 bg-pink-50 dark:bg-pink-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
-                <ShoppingCart className="w-8 h-8 text-[#A31545] dark:text-primary" />
+                <ShoppingCart className="w-8 h-8 text-primary" aria-hidden="true" />
               </div>
-              <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-1">Confirmar resgate</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Revise seu pedido antes de confirmar</p>
+              <h3 className="type-heading-sm text-text-primary mb-1">Confirmar resgate</h3>
+              <p className="type-body-md text-text-meta">Revise seu pedido antes de confirmar</p>
             </div>
 
-            <div className="space-y-2 mb-4">
+            <ul className="space-y-2 mb-4">
               {cartItems.map((item) => (
-                <div key={item.id} className="flex items-center justify-between text-sm">
-                  <span className="text-gray-700 dark:text-gray-300 text-xs">{item.name}</span>
-                  <div className="flex items-center gap-1">
-                    <Coins className="w-3 h-3 text-[#A31545] dark:text-primary" />
-                    <span className="text-xs font-semibold dark:text-gray-200">{item.price}</span>
-                  </div>
-                </div>
+                <li key={item.id} className="flex items-center justify-between gap-3">
+                  <span className="type-body-md text-text-content min-w-0">{item.name}</span>
+                  <span className="flex items-center gap-1 flex-shrink-0">
+                    <Coins className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
+                    <span className="type-label-sm text-text-content tabular-nums">{formatPoints(item.price)} pts</span>
+                  </span>
+                </li>
               ))}
-            </div>
+            </ul>
 
-            <div className="border-t border-gray-100 dark:border-border pt-3 mb-5">
+            <div className="border-t border-border-divider pt-3 mb-5">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-bold dark:text-gray-100">Total</span>
+                <span className="type-title-sm text-text-content">Total</span>
                 <div className="flex items-center gap-1">
-                  <Coins className="w-4 h-4 text-[#A31545] dark:text-primary" />
-                  <span className="font-bold text-[#A31545] dark:text-primary">
-                    {totalCartPrice.toLocaleString("pt-BR")} pts
+                  <Coins className="w-4 h-4 text-primary" aria-hidden="true" />
+                  <span className="type-title-md text-primary tabular-nums">
+                    {formatPoints(totalCartPrice)} pts
                   </span>
                 </div>
               </div>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+              <p className="type-caption text-text-meta mt-1">
                 Saldo após compra:{" "}
-                <span className="font-semibold text-gray-600">
-                  {(userPoints - totalCartPrice).toLocaleString("pt-BR")} pts
+                <span className="type-label-sm text-text-content tabular-nums">
+                  {formatPoints(userPoints - totalCartPrice)} pts
                 </span>
               </p>
             </div>
 
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={() => {
                   setShowCheckout(false);
                   setShowCart(true);
                 }}
-                className="flex-1 py-3 rounded-xl border border-gray-200 dark:border-border text-sm font-semibold text-gray-600 dark:text-gray-300 active:bg-gray-50 dark:active:bg-[#1a1a1a]"
+                className="flex-1 py-3 rounded-xl border border-border-card type-label-md text-text-content active:bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
               >
                 Voltar
               </button>
-              <button
-                onClick={handleCheckout}
-                className="flex-1 py-3 rounded-xl bg-[#A31545] dark:bg-[#F48FB1] text-white text-sm font-bold active:bg-[#7D1133] dark:active:bg-[#EC407A]"
-              >
+              <PrimaryButton onClick={handleCheckout} className="flex-1">
                 Confirmar
-              </button>
+              </PrimaryButton>
             </div>
           </div>
         </div>
@@ -673,26 +724,23 @@ export function LojaPage() {
       {/* Success */}
       {showSuccess && (
         <div className="absolute inset-0 bg-black/60 z-50 flex items-center justify-center p-6">
-          <div className="bg-white dark:bg-card rounded-3xl p-8 w-full text-center shadow-xl">
+          <div className="bg-card rounded-3xl p-8 w-full max-h-full overflow-y-auto text-center shadow-xl">
             <div className="w-20 h-20 bg-green-50 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-10 h-10 text-green-500 dark:text-green-400" />
+              <CheckCircle className="w-10 h-10 text-status-success-icon" aria-hidden="true" />
             </div>
-            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-1 text-lg">Compra realizada!</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-              Seus itens foram resgatados com sucesso 🎉
+            <h3 className="type-heading-sm text-text-primary mb-1">Compra realizada!</h3>
+            <p className="type-body-md text-gray-600 dark:text-gray-400 mb-2">
+              Seus itens foram resgatados com sucesso <span aria-hidden="true">🎉</span>
             </p>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mb-6">
+            <p className="type-caption text-text-meta mb-6">
               Saldo atual:{" "}
-              <span className="font-bold text-[#A31545] dark:text-primary">
-                {userPoints.toLocaleString("pt-BR")} pts
+              <span className="type-label-sm text-primary tabular-nums">
+                {formatPoints(userPoints)} pts
               </span>
             </p>
-            <button
-              onClick={() => setShowSuccess(false)}
-              className="w-full bg-[#A31545] dark:bg-[#F48FB1] text-white text-sm font-bold py-3 rounded-xl active:bg-[#7D1133] dark:active:bg-[#EC407A]"
-            >
+            <PrimaryButton fullWidth onClick={() => setShowSuccess(false)}>
               Continuar comprando
-            </button>
+            </PrimaryButton>
           </div>
         </div>
       )}
