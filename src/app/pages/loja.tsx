@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BottomNav } from "../components/bottom-nav";
 import { PrimaryButton } from "../components/primary-button";
+import { useDialogFocus } from "../hooks/use-dialog-focus";
+import { useInertBackground } from "../hooks/use-inert-background";
 import { Search, ShoppingCart, Coins, X, Check, CheckCircle, Trash2, HelpCircle } from "lucide-react";
 import { useStore, CartItem } from "../context/store-context";
 import { ThemedIcon } from "../components/themed-icon";
@@ -156,11 +158,36 @@ export function LojaPage() {
     return matchSearch && matchCategory;
   });
 
+  const rootRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const cartButtonRef = useRef<HTMLButtonElement>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
+  const detailTitleRef = useRef<HTMLHeadingElement>(null);
+  const cartRef = useRef<HTMLDivElement>(null);
+  const cartTitleRef = useRef<HTMLHeadingElement>(null);
+  const checkoutRef = useRef<HTMLDivElement>(null);
+  const checkoutTitleRef = useRef<HTMLHeadingElement>(null);
+  const successRef = useRef<HTMLDivElement>(null);
+  const successTitleRef = useRef<HTMLHeadingElement>(null);
+  // Produto aberto por último: destino alternativo quando o card não recebeu foco ao abrir
+  const lastProductIdRef = useRef<number | null>(null);
+  // Posição do item removido: o foco vai para o vizinho (ou para o título, se esvaziar)
+  const removedIndexRef = useRef<number | null>(null);
+  const addedTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => () => clearTimeout(addedTimerRef.current), []);
+
+  const openProduct = (item: CartItem) => {
+    lastProductIdRef.current = item.id;
+    setSelectedItem(item);
+  };
+
   const handleAddToCart = (item: CartItem) => {
     const added = addToCart(item);
     if (added) {
+      clearTimeout(addedTimerRef.current);
       setAddedFeedback(item.id);
-      setTimeout(() => setAddedFeedback(null), 1500);
+      addedTimerRef.current = setTimeout(() => setAddedFeedback(null), 1500);
     }
     setSelectedItem(null);
   };
@@ -172,6 +199,76 @@ export function LojaPage() {
       setShowSuccess(true);
     }
   };
+
+  const handleRemoveFromCart = (id: number, index: number) => {
+    removedIndexRef.current = index;
+    removeFromCart(id);
+  };
+
+  const openCheckout = () => {
+    setShowCart(false);
+    setShowCheckout(true);
+  };
+
+  // VOLTAR e Esc na confirmação: volta ao carrinho com os itens, sem resgatar
+  const backToCart = () => {
+    setShowCheckout(false);
+    setShowCart(true);
+  };
+
+  // Um único fundo inerte para os quatro diálogos: nas trocas carrinho ↔
+  // confirmação → sucesso ele continua ativo e o catálogo nunca recebe foco.
+  // Declarado antes dos diálogos: ao fechar, o inert sai antes de o foco voltar.
+  useInertBackground(rootRef, selectedItem !== null || showCart || showCheckout || showSuccess);
+
+  const cartButton = () => cartButtonRef.current;
+
+  useDialogFocus(detailRef, selectedItem !== null, {
+    // Nome do produto primeiro: dá contexto antes de chegar à ação
+    initialFocus: () => detailTitleRef.current,
+    fallbackFocus: () =>
+      rootRef.current?.querySelector<HTMLElement>(`[data-product-id="${lastProductIdRef.current}"]`) ??
+      searchRef.current,
+    onEscape: () => setSelectedItem(null),
+  });
+
+  // Abre pelo Header ou pela barra inferior; se a barra sumiu (último item
+  // removido), o foco volta ao carrinho do Header
+  useDialogFocus(cartRef, showCart, {
+    initialFocus: () => cartTitleRef.current,
+    fallbackFocus: cartButton,
+    onEscape: () => setShowCart(false),
+    // RESGATAR: a confirmação abre em seguida e assume o foco
+    shouldRestoreFocus: () => !showCheckout,
+  });
+
+  useDialogFocus(checkoutRef, showCheckout, {
+    initialFocus: () => checkoutTitleRef.current,
+    fallbackFocus: cartButton,
+    onEscape: backToCart,
+    // Sai sempre para outro diálogo (carrinho ou sucesso), que assume o foco
+    shouldRestoreFocus: () => !showCart && !showSuccess,
+  });
+
+  // Quem iniciou o resgate já desmontou (carrinho vazio): volta ao carrinho do Header
+  useDialogFocus(successRef, showSuccess, {
+    initialFocus: () => successTitleRef.current,
+    fallbackFocus: cartButton,
+    onEscape: () => setShowSuccess(false),
+  });
+
+  useEffect(() => {
+    const index = removedIndexRef.current;
+    if (index === null) return;
+    removedIndexRef.current = null;
+    const removeButtons = cartRef.current?.querySelectorAll<HTMLElement>("[data-cart-remove]");
+    (removeButtons?.[Math.min(index, removeButtons.length - 1)] ?? cartTitleRef.current)?.focus();
+  }, [cartItems]);
+
+  const addedItemName =
+    addedFeedback === null
+      ? null
+      : [featuredItem, ...storeItems].find((item) => item.id === addedFeedback)?.name;
 
   const cartCountLabel = `${cartItems.length} ${cartItems.length === 1 ? "item" : "itens"}`;
 
@@ -192,7 +289,13 @@ export function LojaPage() {
   );
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-bg-page">
+    <div ref={rootRef} className="h-full flex flex-col overflow-hidden bg-bg-page">
+      {/* Anúncio de produto adicionado (addedFeedback): sempre montado para o
+          leitor de tela notar a mudança; aria-live o mantém fora do inert */}
+      <p role="status" aria-live="polite" className="sr-only">
+        {addedItemName ? `${addedItemName} adicionado ao carrinho` : ""}
+      </p>
+
       {/* Header próprio da Loja (não é Header/Page): ajuda, carrinho e busca */}
       <header className="bg-header-bg-start border-b border-pink-700 dark:border-white/8 flex-shrink-0 pt-9">
         <div className="px-4 py-2 flex items-center justify-between">
@@ -210,6 +313,7 @@ export function LojaPage() {
               <HelpCircle className="w-5 h-5" aria-hidden="true" />
             </button>
             <button
+              ref={cartButtonRef}
               type="button"
               onClick={() => setShowCart(true)}
               aria-label={cartItems.length > 0 ? `Abrir carrinho, ${cartCountLabel}` : "Abrir carrinho"}
@@ -236,6 +340,7 @@ export function LojaPage() {
               className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-input-placeholder"
             />
             <input
+              ref={searchRef}
               type="text"
               aria-label="Buscar produtos"
               placeholder="Buscar produtos..."
@@ -315,7 +420,8 @@ export function LojaPage() {
         <div className="px-4 pt-4">
           <button
             type="button"
-            onClick={() => setSelectedItem(featuredItem)}
+            data-product-id={featuredItem.id}
+            onClick={() => openProduct(featuredItem)}
             className="w-full bg-card rounded-2xl overflow-hidden shadow-md border border-border-card relative text-left active:scale-[0.99] transition-transform outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-page"
           >
             <span
@@ -378,7 +484,8 @@ export function LojaPage() {
                   <li key={item.id}>
                     <button
                       type="button"
-                      onClick={() => setSelectedItem(item)}
+                      data-product-id={item.id}
+                      onClick={() => openProduct(item)}
                       className="w-full h-full flex flex-col bg-card rounded-2xl overflow-hidden shadow-md border border-border-card p-2.5 @min-[360px]:p-2 text-center active:scale-95 transition-transform outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-page"
                     >
                       {/* Item image — 4:3 em 2 colunas para não alongar o card; quadrada em 3 */}
@@ -474,8 +581,14 @@ export function LojaPage() {
 
       {/* Item Detail Modal */}
       {selectedItem && (
-        <div className="absolute inset-0 bg-black/50 z-40 flex items-end">
-          <div className="bg-card w-full max-h-[90%] overflow-y-auto rounded-t-3xl p-5 animate-slide-up">
+        <div data-dialog-layer className="absolute inset-0 bg-black/50 z-40 flex items-end">
+          <div
+            ref={detailRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="loja-product-title"
+            className="bg-card w-full max-h-[90%] overflow-y-auto rounded-t-3xl p-5 animate-slide-up"
+          >
             <div className="flex items-start justify-between mb-4">
               <div
                 className="w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0"
@@ -497,7 +610,14 @@ export function LojaPage() {
             <span className="inline-block bg-pink-50 dark:bg-pink-900/30 text-primary type-label-sm px-2.5 py-0.5 rounded-full mb-2">
               {selectedItem.category}
             </span>
-            <h3 className="type-heading-sm text-text-content mb-1">{selectedItem.name}</h3>
+            <h3
+              id="loja-product-title"
+              ref={detailTitleRef}
+              tabIndex={-1}
+              className="type-heading-sm text-text-content mb-1 outline-none"
+            >
+              {selectedItem.name}
+            </h3>
             <p className="type-body-md text-gray-600 dark:text-gray-400 mb-4">{selectedItem.description}</p>
 
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-4 bg-bg-page rounded-xl p-3">
@@ -552,12 +672,25 @@ export function LojaPage() {
 
       {/* Cart Panel */}
       {showCart && (
-        <div className="absolute inset-0 bg-black/50 z-40 flex flex-col justify-end">
-          <div className="bg-card rounded-t-3xl flex flex-col max-h-[85%]">
+        <div data-dialog-layer className="absolute inset-0 bg-black/50 z-40 flex flex-col justify-end">
+          <div
+            ref={cartRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="loja-cart-title"
+            className="bg-card rounded-t-3xl flex flex-col max-h-[85%]"
+          >
             <div className="flex items-center justify-between px-5 py-4 border-b border-border-divider">
               <div className="flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5 text-primary" aria-hidden="true" />
-                <h3 className="type-title-md text-text-content">Carrinho</h3>
+                <h3
+                  id="loja-cart-title"
+                  ref={cartTitleRef}
+                  tabIndex={-1}
+                  className="type-title-md text-text-content outline-none"
+                >
+                  Carrinho
+                </h3>
                 {cartItems.length > 0 && (
                   <span className="min-w-5 h-5 px-1 bg-primary text-primary-foreground type-label-xs tabular-nums rounded-full flex items-center justify-center">
                     {cartItems.length}
@@ -584,7 +717,7 @@ export function LojaPage() {
                 </div>
               ) : (
                 <ul className="p-4 space-y-3">
-                  {cartItems.map((item) => (
+                  {cartItems.map((item, index) => (
                     <li
                       key={item.id}
                       className="flex items-center gap-3 bg-bg-page rounded-xl p-3"
@@ -606,7 +739,8 @@ export function LojaPage() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => removeFromCart(item.id)}
+                        data-cart-remove
+                        onClick={() => handleRemoveFromCart(item.id, index)}
                         aria-label={`Remover ${item.name} do carrinho`}
                         className="flex-shrink-0 p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-accent outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
@@ -644,13 +778,7 @@ export function LojaPage() {
                     Pontos insuficientes
                   </div>
                 ) : (
-                  <PrimaryButton
-                    fullWidth
-                    onClick={() => {
-                      setShowCart(false);
-                      setShowCheckout(true);
-                    }}
-                  >
+                  <PrimaryButton fullWidth onClick={openCheckout}>
                     Resgatar
                   </PrimaryButton>
                 )}
@@ -662,14 +790,30 @@ export function LojaPage() {
 
       {/* Checkout Confirmation */}
       {showCheckout && (
-        <div className="absolute inset-0 bg-black/50 z-50 flex items-center justify-center p-6">
-          <div className="bg-card rounded-3xl p-6 w-full max-h-full overflow-y-auto shadow-xl">
+        <div data-dialog-layer className="absolute inset-0 bg-black/50 z-50 flex items-center justify-center p-6">
+          <div
+            ref={checkoutRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="loja-checkout-title"
+            aria-describedby="loja-checkout-description"
+            className="bg-card rounded-3xl p-6 w-full max-h-full overflow-y-auto shadow-xl"
+          >
             <div className="text-center mb-5">
               <div className="w-16 h-16 bg-pink-50 dark:bg-pink-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
                 <ShoppingCart className="w-8 h-8 text-primary" aria-hidden="true" />
               </div>
-              <h3 className="type-heading-sm text-text-primary mb-1">Confirmar resgate</h3>
-              <p className="type-body-md text-text-meta">Revise seu pedido antes de confirmar</p>
+              <h3
+                id="loja-checkout-title"
+                ref={checkoutTitleRef}
+                tabIndex={-1}
+                className="type-heading-sm text-text-primary mb-1 outline-none"
+              >
+                Confirmar resgate
+              </h3>
+              <p id="loja-checkout-description" className="type-body-md text-text-meta">
+                Revise seu pedido antes de confirmar
+              </p>
             </div>
 
             <ul className="space-y-2 mb-4">
@@ -705,10 +849,7 @@ export function LojaPage() {
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => {
-                  setShowCheckout(false);
-                  setShowCart(true);
-                }}
+                onClick={backToCart}
                 className="flex-1 py-3 rounded-xl border border-border-card type-label-md text-text-content active:bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
               >
                 Voltar
@@ -723,13 +864,28 @@ export function LojaPage() {
 
       {/* Success */}
       {showSuccess && (
-        <div className="absolute inset-0 bg-black/60 z-50 flex items-center justify-center p-6">
-          <div className="bg-card rounded-3xl p-8 w-full max-h-full overflow-y-auto text-center shadow-xl">
+        <div data-dialog-layer className="absolute inset-0 bg-black/60 z-50 flex items-center justify-center p-6">
+          <div
+            ref={successRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="loja-success-title"
+            aria-describedby="loja-success-message"
+            className="bg-card rounded-3xl p-8 w-full max-h-full overflow-y-auto text-center shadow-xl"
+          >
             <div className="w-20 h-20 bg-green-50 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-10 h-10 text-status-success-icon" aria-hidden="true" />
             </div>
-            <h3 className="type-heading-sm text-text-primary mb-1">Compra realizada!</h3>
-            <p className="type-body-md text-gray-600 dark:text-gray-400 mb-2">
+            {/* Foco inicial: a própria mensagem de sucesso */}
+            <h3
+              id="loja-success-title"
+              ref={successTitleRef}
+              tabIndex={-1}
+              className="type-heading-sm text-text-primary mb-1 outline-none"
+            >
+              Compra realizada!
+            </h3>
+            <p id="loja-success-message" className="type-body-md text-gray-600 dark:text-gray-400 mb-2">
               Seus itens foram resgatados com sucesso <span aria-hidden="true">🎉</span>
             </p>
             <p className="type-caption text-text-meta mb-6">

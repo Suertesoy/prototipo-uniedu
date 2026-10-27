@@ -28,8 +28,9 @@ export default function App() {
     return () => window.removeEventListener("uniedu-logout", handleLogout);
   }, []);
 
-  // Diálogo aberto na Home: o link do case fica fora da tela do app e não é
-  // alcançado pelo inert dela. Atributo via ref (React 18 não conhece "inert").
+  // Diálogo aberto (Home ou Loja, hooks/use-inert-background): o link do case
+  // fica fora da tela do app e não é alcançado pelo inert da página.
+  // Atributo via ref (React 18 não conhece "inert").
   const caseLinkRef = useRef<HTMLAnchorElement>(null);
   useEffect(() => {
     const handleDialog = (event: Event) =>
